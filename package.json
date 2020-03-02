@@ -1,5 +1,5 @@
 {
-  "name": "@fiquu/template",
+  "name": "@fiquu/slseed-web-utils",
   "version": "0.0.0",
   "description": "fiquu project template.",
   "main": "lib/index.js",
@@ -12,17 +12,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fiquu/template.git"
+    "url": "git+https://github.com/fiquu/slseed-web-utils.git"
   },
   "keywords": [
-    "template"
+    "serverless",
+    "slseed",
+    "setup",
+    "tools",
+    "utils",
+    "app",
+    "api",
+    "web"
   ],
   "author": "fiquu (https://github.com/fiquu) <hi@fiquu.dev>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/fiquu/template/issues"
+    "url": "https://github.com/fiquu/slseed-web-utils/issues"
   },
-  "homepage": "https://github.com/fiquu/template#readme",
+  "homepage": "https://github.com/fiquu/slseed-web-utils#readme",
   "engines": {
     "node": ">= 12",
     "npm": ">= 6"
