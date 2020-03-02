@@ -35,7 +35,7 @@
     "npm": ">= 6"
   },
   "dependencies": {
-    "@types/node": "^13.7.6"
+    "@types/node": "^13.7.7"
   },
   "devDependencies": {
     "@fiquu/eslint-config": "^2.0.0",
@@ -50,7 +50,7 @@
     "mocha": "^7.1.0",
     "nyc": "^15.0.0",
     "ts-node": "^8.6.2",
-    "typedoc": "^0.16.10",
-    "typescript": "^3.8.2"
+    "typedoc": "^0.16.11",
+    "typescript": "^3.8.3"
   }
 }
