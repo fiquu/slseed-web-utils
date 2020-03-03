@@ -35,6 +35,9 @@
     "node": ">= 12",
     "npm": ">= 6"
   },
+  "bin": {
+    "slseed-utils": "lib/index"
+  },
   "dependencies": {
     "@types/aws-sdk": "^2.7.0",
     "@types/inquirer": "^6.5.0",
@@ -44,10 +47,12 @@
     "dotenv": "^8.2.0",
     "fi-is": "^4.0.0",
     "glob": "^7.1.6",
+    "greeting-time": "^1.0.0",
     "inquirer": "^7.0.5",
     "ora": "^4.0.3",
     "rcfile": "^1.0.3",
-    "s3-deploy": "^1.4.0"
+    "s3-deploy": "^1.4.0",
+    "username": "^5.1.0"
   },
   "peerDependencies": {
     "aws-sdk": "^2.630.0",
