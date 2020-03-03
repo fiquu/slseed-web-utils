@@ -1,11 +1,11 @@
 import { join, resolve } from 'path';
-import { prompt } from 'inquirer';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import rcfile from 'rcfile';
 import chalk from 'chalk';
 import ora from 'ora';
 
+import confirmPrompt from '../confirm-prompt';
 import stageSelect from '../stage-select';
 
 const slseedrc = rcfile('slseed');
@@ -84,15 +84,7 @@ async function syncIndexes(): Promise<void> {
   try {
     await init();
 
-    const { confirm } = await prompt([
-      {
-        name: 'confirm',
-        type: 'confirm',
-        message: 'Proceed with index syncing?'
-      }
-    ]);
-
-    if (!confirm) {
+    if (!(await confirmPrompt('Proceed with index syncing?'))) {
       spinner.warn('Canceled.');
       return;
     }

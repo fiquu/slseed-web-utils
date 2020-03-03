@@ -1,28 +1,12 @@
-/**
- * Serverless deploy script.
- *
- * @module deploy
- */
+import { spawnSync } from 'child_process';
 
-const { spawn } = require('child_process');
-const { prompt } = require('inquirer');
+import stageSelect from '../stage-select';
 
-(async () => {
-  const { profiles } = require('../configs/aws');
+(async (): Promise<void> => {
+  await stageSelect();
 
-  const { profile } = await prompt({
-    name: 'profile',
-    type: 'list',
-    message: 'Select deployment target profile:',
-    choices: Object.keys(profiles)
-  });
-
-  await new Promise(resolve => {
-    const cmd = spawn('sls', ['deploy', '--stage', profile], {
-      stdio: 'inherit',
-      shell: true
-    });
-
-    cmd.on('close', () => resolve());
+  spawnSync('sls', ['deploy', '--stage', process.env.NODE_ENV], {
+    stdio: 'inherit',
+    shell: true
   });
 })();

@@ -1,230 +1,161 @@
+import { spawnSync } from 'child_process';
+import { join, posix } from 'path';
+import rcfile from 'rcfile';
+import AWS from 'aws-sdk';
+import chalk from 'chalk';
+import ora from 'ora';
+
+import confirmPrompt from '../confirm-prompt';
+import stageSelect from '../stage-select';
+
+const slseedrc = rcfile('slseed');
+const spinner = ora();
+
 /**
- * Deploy module.
- *
- * @module configs/deploy
+ * Initializes the proper env.
  */
+async function init(): Promise<void> {
+  await stageSelect();
+}
 
-const inquirer = require('inquirer');
-const mime = require('mime-types');
-const AWS = require('aws-sdk');
-const chalk = require('chalk');
-const path = require('path');
-const walk = require('walk');
-const ora = require('ora');
-const fs = require('fs');
-
-const pkg = require('../package.json');
-
-(async () => {
-  await require('./stage-select')(true);
-
-  const spinner = ora(`Deploying for [${process.env.NODE_ENV}]...`);
-  const config = require('../configs/deploy');
-
-  const cloudfront = new AWS.CloudFront();
+/**
+ * Resolves the S3 bucket name from the SSM parameter.
+ *
+ * @param {string} name The parameter name.
+ *
+ * @returns {Promise<string>} A promise to the bucket name.
+ */
+async function getS3BucketName(name: string): Promise<string> {
   const ssm = new AWS.SSM();
+
+  spinner.info('Resolving deploy S3 bucket name...');
+
+  const params = {
+    Name: `/${slseedrc.stack}/${process.env.NODE_ENV}/${name}`,
+    WithDecryption: true
+  };
+
+  const { Parameter } = await ssm.getParameter(params).promise();
+
+  return Parameter.Value;
+}
+
+/**
+ * Resolves the CloudFront distribution Id from the SSM parameter.
+ *
+ * @param {string} name The parameter name.
+ *
+ * @returns {Promise<string>} A promise to the CloudFront distribution Id.
+ */
+async function getCloudFrontDistId(name: string): Promise<string> {
+  const ssm = new AWS.SSM();
+
+  spinner.info('Resolving deploy CloudFront distribution Id...');
+
+  const params = {
+    Name: `/${slseedrc.stack}/${process.env.NODE_ENV}/${name}`,
+    WithDecryption: true
+  };
+
+  const { Parameter } = await ssm.getParameter(params).promise();
+
+  return Parameter.Value;
+}
+
+/**
+ * Starts the build task.
+ */
+function rebuildDists(): void {
+  spawnSync('npm run build', [], {
+    stdio: 'inherit',
+    shell: true
+  });
+}
+
+/**
+ * Checks if the current version has already been deployed.
+ *
+ * @param {string} bucket The deploy S3 bucket name.
+ * @param {string} version The current vesion name.
+ *
+ * @returns {Promise<boolean>} A promise to whether this version has been deployed.
+ */
+async function checkIfVersionDeployed(bucket: string, version: string): Promise<boolean> {
   const s3 = new AWS.S3();
 
-  spinner.start();
+  spinner.info(`Checking deploy status for [${chalk.bold(`v${version}`)}]...`);
 
-  spinner.info('Resolving target S3 bucket name...');
+  const params: AWS.S3.ListObjectsRequest = {
+    Prefix: posix.join(version),
+    Bucket: bucket,
+    MaxKeys: 1
+  };
 
-  const s3BucketName = await new Promise((resolve, reject) => {
-    const params = {
-      Name: `/${pkg.name}/${process.env.NODE_ENV}/${config.s3.ssmParam}`,
-      WithDecryption: true
-    };
+  const { Contents } = await s3.listObjects(params).promise();
 
-    ssm.getParameter(params, (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+  return Contents && Contents.length > 0;
+}
 
-      resolve(data.Parameter.Value);
-    });
-  });
+/**
+ * Deploys the distributables to S3.
+ *
+ * @param {object} config The deploy config.
+ * @param {string} bucket The deploy S3 bucket name.
+ * @param {string} version The current version.
+ */
+async function deploy(config, bucket, version): Promise<void> {
+  const { region } = await import(join(slseedrc.configs, 'aws'));
 
-  spinner.info(`Checking deploy status for [${chalk.bold(`v${pkg.version}`)}]...`);
+  const s3DeployArgs = [
+    join(slseedrc.dist, '**'),
+    '--profile', process.env.AWS_PROFILE,
+    '--filePrefix', version,
+    '--cwd', slseedrc.dist,
+    '--bucket', bucket,
+    '--region', region,
+    '--deleteRemoved',
+    '--etag',
+    '--gzip'
+  ];
 
-  const results = await new Promise((resolve, reject) => {
-    const params = {
-      Prefix: path.posix.join(pkg.name, pkg.version),
-      Bucket: s3BucketName,
-      MaxKeys: 1
-    };
+  if (config.cloudfront && config.cloudfront.ssmParam) {
+    const cloudFrontDistId = await getCloudFrontDistId(config.cloudfront.ssmParam);
 
-    s3.listObjects(params, (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve(data);
-    });
-  });
-
-  if (results && results.Contents && results.Contents.length > 0) {
-    const answers = await inquirer.prompt({
-      name: 'proceed',
-      type: 'confirm',
-      message: `This version has already been deployed. Proceed anyway?`,
-      default: false
-    });
-
-    if (!answers.proceed) {
-      spinner.warn('Deploy aborted!');
-      return;
-    }
+    s3DeployArgs.push('--distId', cloudFrontDistId, '--invalidate');
   }
 
-  spinner.info(`Listing files for deployment...`);
+  spinner.stop();
 
-  const files = [];
-
-  await new Promise((resolve, reject) => {
-    const walker = walk.walk(path.resolve('dist'), {});
-
-    walker.on('file', (root, fileStats, next) => {
-      files.push(path.resolve(path.join(root, fileStats.name)));
-      next();
-    });
-
-    walker.on('errors', () => {
-      spinner.fail(`Read file error!`);
-      reject();
-    });
-
-    walker.on('end', resolve);
+  spawnSync('node node_modules/.bin/s3-deploy', s3DeployArgs, {
+    stdio: 'inherit',
+    shell: true
   });
+}
 
-  console.dir(files);
+(async (): Promise<void> => {
+  await init();
 
-  for (let file of files) {
-    const Key = path.posix.join(pkg.name, pkg.version, file.replace(path.posix.join(process.cwd(), 'dist'), ''));
+  const config = await import(join(slseedrc.configs, 'deploy'));
 
-    spinner.info(`Uploading ${chalk.bold(`${s3BucketName}/${Key}`)}...`);
+  spinner.start(`Deploying for [${process.env.NODE_ENV}]...`);
 
-    await new Promise((resolve, reject) => {
-      const params = {
-        ContentType: mime.contentType(path.extname(file)) || undefined,
-        Body: fs.createReadStream(file),
-        Bucket: s3BucketName,
-        Key
-      };
-
-      s3.upload(params, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-    spinner.succeed(`Upload successful.`);
+  if (await confirmPrompt('Rebuild distributables?')) {
+    rebuildDists();
   }
 
-  spinner.succeed(`All files uploaded!`);
+  const { version } = await import(join(slseedrc.root, 'package.json'));
+  const s3BucketName = await getS3BucketName(config.s3.ssmParam);
+  const deployed = await checkIfVersionDeployed(s3BucketName, version);
 
-  spinner.info('Resolving target CloudFront distribution ID...');
+  if (deployed && !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))) {
+    spinner.warn('Deploy aborted!');
+    return;
+  }
 
-  const cloudfrontDistId = await new Promise((resolve, reject) => {
-    const params = {
-      Name: `/${pkg.name}/${process.env.NODE_ENV}/${config.cloudfront.ssmParam}`,
-      WithDecryption: true
-    };
+  spinner.info('Starting deploy process...');
 
-    ssm.getParameter(params, (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+  await deploy(config, s3BucketName, version);
 
-      resolve(data.Parameter.Value);
-    });
-  });
-
-  spinner.info(`Updating CloudFront distribution...`);
-
-  const distConfig = await new Promise((resolve, reject) => {
-    const params = {
-      Id: cloudfrontDistId
-    };
-
-    cloudfront.getDistributionConfig(params, (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve(data);
-    });
-  });
-
-  await new Promise((resolve, reject) => {
-    const params = {
-      Id: cloudfrontDistId,
-      IfMatch: distConfig.ETag,
-      DistributionConfig: {
-        ...distConfig.DistributionConfig,
-        Comment: `${pkg.app.name} [${process.env.NODE_ENV}]`,
-        DefaultRootObject: 'index.html',
-        Origins: {
-          Quantity: 1,
-          Items: [
-            {
-              ...distConfig.DistributionConfig.Origins.Items.pop(), // Copy last origin's config
-              Id: `S3-${s3BucketName}/${pkg.name}/${pkg.version}`,
-              DomainName: `${s3BucketName}.s3.amazonaws.com`,
-              OriginPath: `/${pkg.name}/${pkg.version}`
-            }
-          ]
-        },
-        DefaultCacheBehavior: {
-          ...distConfig.DistributionConfig.DefaultCacheBehavior,
-          TargetOriginId: `S3-${s3BucketName}/${pkg.name}/${pkg.version}`
-        }
-      }
-    };
-
-    cloudfront.updateDistribution(params, err => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve();
-    });
-  });
-
-  spinner.succeed(`CloudFront distribution updated.`);
-
-  await new Promise((resolve, reject) => {
-    const params = {
-      DistributionId: cloudfrontDistId,
-      InvalidationBatch: {
-        CallerReference: String(Date.now()),
-        Paths: {
-          Quantity: 2,
-          Items: ['/service-worker.js', '/index.html']
-        }
-      }
-    };
-
-    spinner.info(`Invalidating objects...`);
-
-    cloudfront.createInvalidation(params, err => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve();
-    });
-  });
-
-  spinner.succeed(`CloudFront invalidation requested.`);
-  spinner.succeed(`Deploy complete!`);
+  spinner.succeed('Deploy complete!');
 })();
+

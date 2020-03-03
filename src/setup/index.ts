@@ -1,15 +1,16 @@
-import { prompt, join } from 'inquirer';
+import { prompt } from 'inquirer';
+import { join } from 'path';
 
 const choices = new Map();
 
 choices.set('Stack Setup', 'stack.js');
 choices.set('Env Setup', 'env.js');
-choices.set('Database Index Sync', 'sync-db-indexes.js');
+choices.set('Sync Database Indexes', 'sync-db-indexes.js');
 
 (async (): Promise<void> => {
   const { key } = await prompt({
-    choices: choices.keys(),
-    message: 'Select setup script to run',
+    choices: Array.from(choices.keys()),
+    message: 'Select script to run',
     type: 'list',
     name: 'key'
   });

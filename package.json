@@ -7,6 +7,7 @@
     "test": "nyc mocha -r ts-node/register test/**/*.spec.ts",
     "postversion": "git push --follow-tags",
     "build": "tsc && npm run docs",
+    "test:deploy": "s3-deploy",
     "docs": "typedoc",
     "prepack": "tsc"
   },
@@ -45,7 +46,8 @@
     "glob": "^7.1.6",
     "inquirer": "^7.0.5",
     "ora": "^4.0.3",
-    "rcfile": "^1.0.3"
+    "rcfile": "^1.0.3",
+    "s3-deploy": "^1.4.0"
   },
   "peerDependencies": {
     "aws-sdk": "^2.630.0",

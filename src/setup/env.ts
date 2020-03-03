@@ -1,11 +1,3 @@
-/**
- * Env setup.
- *
- * @example $ npm run env
- *
- * @module setup/env
- */
-
 import { writeFileSync } from 'fs';
 import { posix, join } from 'path';
 import rcfile from 'rcfile';
@@ -16,6 +8,11 @@ import stageSelect from '../stage-select';
 
 const slseedrc = rcfile('slseed');
 const spinner = ora();
+
+interface SSMParamSet {
+  Parameter: AWS.SSM.Parameter;
+  envVar: string;
+}
 
 /**
  * Initializes the proper env.
@@ -35,21 +32,21 @@ async function init(): Promise<void> {
  * Resolves an SSM parameter.
  *
  * @param {AWS.SSM} ssm The SSM instance.
- * @param {string} ssmPath The parameter path.
+ * @param {string} name The SSM parameter name.
  *
  * @returns {object} A promise to the parameter env var name and Parameter data.
  */
-async function resolveParam(ssm, ssmPath): Promise<any> {
+async function resolveParam(ssm, name): Promise<SSMParamSet> {
   const params = {
-    Name: posix.join('/', slseedrc.stack, process.env.NODE_ENV, ssmPath),
+    Name: posix.join('/', slseedrc.stack, process.env.NODE_ENV, name),
     WithDecryption: true
   };
 
   try {
     const { Parameter } = await ssm.getParameter(params).promise();
-    const name = ssmPath.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+    const envVar = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
 
-    return { name, Parameter };
+    return { envVar, Parameter };
   } catch (err) {
     spinner.fail(`${err.code}: ${params.Name}`);
     throw err;
@@ -62,27 +59,28 @@ async function resolveParam(ssm, ssmPath): Promise<any> {
 
     spinner.start(`Setting env file for [${process.env.NODE_ENV}]...`);
 
-    const ssmEnv = await import(join(slseedrc.configs, 'ssm.env'));
+    const ssmEnv: string[] = await import(join(slseedrc.configs, 'ssm.env'));
     const env = [`NODE_ENV=${process.env.NODE_ENV}`];
     const ssm = new AWS.SSM();
-    const promises = [];
 
-    for (const ssmPath of ssmEnv) {
-      const promise = resolveParam(ssm, ssmPath).then(({ name, Parameter }) => {
-        const prefix = `${slseedrc.type === 'app' ? 'VUE_APP_' : ''}`;
+    await Promise.all(ssmEnv.map(paramName => {
+      const withPrefix = slseedrc.type === 'app' && !paramName.startsWith('!');
+      const name = paramName.replace(/^!/, '');
 
-        spinner.info(`${name}=[ssm:${Parameter.Name}]`);
-        env.push(`${prefix}${name}=${Parameter.Value}`);
+      const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
+        const prefix = withPrefix ? 'VUE_APP_' : '';
+
+        spinner.info(`${prefix}${envVar}=[ssm:${Parameter.Name}]`);
+
+        env.push(`${prefix}${envVar}=${Parameter.Value}`);
       });
 
-      promises.push(promise);
-    }
-
-    await Promise.all(promises);
+      return promise;
+    }));
 
     writeFileSync(`.env.${process.env.NODE_ENV}`, env.join('\n'), 'utf8');
 
-    spinner.succeed('Env file saved!');
+    spinner.succeed('DotEnv file saved!');
   } catch (err) {
     spinner.fail(err.message);
     throw err;
