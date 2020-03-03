@@ -67,27 +67,6 @@ async function checkIfCurrentStackExists(StackName: AWS.CloudFormation.StackName
 }
 
 /**
- * Normalizes template values.
- *
- * @param {boolean} isUpdate The current stack.
- * @param {object[]} values The current values.
- *
- * @returns {object[]} The normalized values array.
- */
-function normalizeValues(isUpdate: boolean, values: InputQuestion[]): InputQuestion[] {
-  const previous = chalk.reset.dim(' (empty for previous)');
-
-  return values.map(value => {
-    if (isUpdate) {
-      value.message += previous;
-      value.default = undefined;
-    }
-
-    return value;
-  });
-}
-
-/**
  * Creates the CloudFormation values prompts.
  *
  * @param {boolean} isUpdate Whether it is a stack update.
@@ -96,12 +75,19 @@ function normalizeValues(isUpdate: boolean, values: InputQuestion[]): InputQuest
  * @returns {object[]} The CloudFormation prompt values.
  */
 function getParamsQuestions(isUpdate: boolean, values: InputQuestion[]): InputQuestion[] {
-  return normalizeValues(isUpdate, values).map((value: InputQuestion) => {
-    return {
+  const previous = chalk.reset.dim(' (empty for previous)');
+
+  return values.map((value: InputQuestion) => {
+    const _value: InputQuestion = {
       ...value,
-      message: `${value.message}:`,
-      validate: (val: string): boolean => (isUpdate && is.empty(val)) || value.validate(val)
+      default: isUpdate ? undefined : value.default,
+      message: `${value.message}${isUpdate ? previous : ''}:`,
+      validate: (val: string): boolean => {
+        return (isUpdate && is.empty(val)) || value.validate(val);
+      }
     };
+
+    return _value;
   });
 }
 
@@ -170,7 +156,7 @@ async function describeStacks(StackName: AWS.CloudFormation.StackName, isUpdate:
 
     default:
       const message = [
-        `Stack ${isUpdate ? 'update' : 'creation'} failed: ${StackStatus}.`,
+        `Stack ${isUpdate ? 'update' : 'creation'} failed: "${StackStatus}".`,
         'Please check the AWS CloudFormation console for more information',
         '(https://console.aws.amazon.com/cloudformation/home).'
       ];
@@ -227,9 +213,23 @@ async function updateStack(params: AWS.CloudFormation.UpdateStackInput): Promise
   spinner.succeed('Stack update initiated.');
 }
 
-(async (): Promise<void> => {
-  console.log(`\n${chalk.cyan.bold('Application Stack Setup Script')}\n`);
+/**
+ * Gets the template and answers.
+ *
+ * @param {boolean} isUpdate Whether it is a stack update.
+ */
+async function getStackConfig(isUpdate: boolean): Promise<any> {
+  const template: AWS.CloudFormation.TemplateBody = await require(join(slseedrc.configs, 'stack', 'template'));
+  const values: InputQuestion[] = await require(join(slseedrc.configs, 'stack', 'values'));
+  const questions: InputQuestion[] = getParamsQuestions(isUpdate, values);
+  const answers: Answers = await prompt(questions);
 
+  return { template, answers };
+}
+
+console.log(`\n${chalk.cyan.bold('Application Stack Setup Script')}\n`);
+
+(async (): Promise<void> => {
   await init();
 
   try {
@@ -243,15 +243,12 @@ async function updateStack(params: AWS.CloudFormation.UpdateStackInput): Promise
       spinner.warn('Template already exists.');
 
       if (!(await confirmPrompt('Proceed with stack update?'))) {
-        spinner.info('Update canceled.');
-        throw new Error('Update canceled');
+        spinner.fail('Update canceled.');
+        return;
       }
     }
 
-    const template: AWS.CloudFormation.TemplateBody = await import(join(slseedrc.configs, 'stack', 'template'));
-    const values = await import(join(slseedrc.configs, 'stack', 'values'));
-    const questions = getParamsQuestions(isUpdate, values);
-    const answers = await prompt(questions);
+    const { template, answers } = await getStackConfig(isUpdate);
 
     if (!(await confirmPrompt('Confirm values?'))) {
       spinner.warn('Values not confirmed. Canceled.');
@@ -269,6 +266,8 @@ async function updateStack(params: AWS.CloudFormation.UpdateStackInput): Promise
     }
 
     spinner.info('You can skip the check process if you wish by pressing [CTRL+C].');
+    spinner.info('Also, you should update your .env after this.');
+
     spinner.start('Checking CloudFormation Stack status (this may take several minutes)...');
 
     await describeStacks(StackName, isUpdate);

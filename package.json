@@ -2,14 +2,14 @@
   "name": "@fiquu/slseed-web-utils",
   "version": "0.0.0",
   "description": "fiquu Slseed web utils and tools.",
-  "main": "lib/index.js",
+  "main": "lib/slseed-utils.js",
   "scripts": {
     "test": "nyc mocha -r ts-node/register test/**/*.spec.ts",
     "postversion": "git push --follow-tags",
-    "build": "tsc && npm run docs",
-    "test:deploy": "s3-deploy",
+    "build": "tsc",
+    "postbuild": "chmod +x lib/cli.js",
     "docs": "typedoc",
-    "prepack": "tsc"
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -31,12 +31,12 @@
     "url": "https://github.com/fiquu/slseed-web-utils/issues"
   },
   "homepage": "https://github.com/fiquu/slseed-web-utils#readme",
+  "bin": {
+    "slseed-utils": "./lib/cli.js"
+  },
   "engines": {
     "node": ">= 12",
     "npm": ">= 6"
-  },
-  "bin": {
-    "slseed-utils": "lib/index"
   },
   "dependencies": {
     "@types/aws-sdk": "^2.7.0",
@@ -73,7 +73,6 @@
     "mongoose": "^5.9.2",
     "nyc": "^15.0.0",
     "ts-node": "^8.6.2",
-    "typedoc": "^0.16.11",
     "typescript": "^3.8.3"
   }
 }

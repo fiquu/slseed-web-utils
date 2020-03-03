@@ -1,3 +1,7 @@
+#!/usr/bin/env node
+
+/* eslint-disable node/shebang */
+
 import greetingTime from 'greeting-time';
 import { prompt } from 'inquirer';
 import username from 'username';

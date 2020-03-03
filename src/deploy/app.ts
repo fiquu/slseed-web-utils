@@ -104,7 +104,7 @@ async function checkIfVersionDeployed(bucket: string, version: string): Promise<
  * @param {string} version The current version.
  */
 async function deploy(config, bucket, version): Promise<void> {
-  const { region } = await import(join(slseedrc.configs, 'aws'));
+  const { region } = await require(join(slseedrc.configs, 'aws'));
 
   const s3DeployArgs = [
     join(slseedrc.dist, '**'),
@@ -135,7 +135,7 @@ async function deploy(config, bucket, version): Promise<void> {
 (async (): Promise<void> => {
   await init();
 
-  const config = await import(join(slseedrc.configs, 'deploy'));
+  const config = await require(join(slseedrc.configs, 'deploy'));
 
   spinner.start(`Deploying for [${process.env.NODE_ENV}]...`);
 
@@ -143,7 +143,7 @@ async function deploy(config, bucket, version): Promise<void> {
     rebuildDists();
   }
 
-  const { version } = await import(join(slseedrc.root, 'package.json'));
+  const { version } = await require(join(slseedrc.root, 'package.json'));
   const s3BucketName = await getS3BucketName(config.s3.ssmParam);
   const deployed = await checkIfVersionDeployed(s3BucketName, version);
 

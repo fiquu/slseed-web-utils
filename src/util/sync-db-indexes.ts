@@ -1,5 +1,5 @@
+import mongoose, { ConnectionOptions } from 'mongoose';
 import { join, resolve } from 'path';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import rcfile from 'rcfile';
 import chalk from 'chalk';
@@ -26,14 +26,11 @@ async function init(): Promise<void> {
 
 /**
  * Connects to the database.
+ *
+ * @param uri
+ * @param options
  */
-async function connect(): Promise<void> {
-  const { uri, options } = await import(join(slseedrc.service, 'configs', 'database'));
-
-  spinner.info(
-    `${chalk.bold('Target database:')} ${uri.replace(/^mongodb(\+srv)?:\/\/([^:]+:[^@]+@)?([^?]+).*$/, '$3')}`
-  );
-
+async function connect(uri: string, options: ConnectionOptions): Promise<void> {
   spinner.start('Connecting to the database...');
 
   await mongoose.connect(uri, options);
@@ -58,7 +55,7 @@ async function disconnect(): Promise<void> {
 async function registerSchemas(): Promise<void> {
   spinner.start('Registering schemas...');
 
-  const schemas = await import(join(slseedrc.service, 'components', 'schemas'));
+  const schemas = await require(join(slseedrc.service, 'components', 'schemas'));
 
   schemas.register(mongoose);
 
@@ -84,12 +81,18 @@ async function syncIndexes(): Promise<void> {
   try {
     await init();
 
+    const { uri, options } = await require(join(slseedrc.service, 'configs', 'database'));
+
+    spinner.info(
+      `${chalk.bold('Target database:')} ${uri.replace(/^mongodb(\+srv)?:\/\/([^:]+:[^@]+@)?([^?]+).*$/, '$3')}`
+    );
+
     if (!(await confirmPrompt('Proceed with index syncing?'))) {
       spinner.warn('Canceled.');
       return;
     }
 
-    await connect();
+    await connect(uri, options);
     await registerSchemas();
 
     await syncIndexes();

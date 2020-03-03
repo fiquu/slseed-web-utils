@@ -20,7 +20,7 @@ interface SSMParamSet {
 async function init(): Promise<void> {
   await stageSelect();
 
-  const { apiVersions, region } = await import(join(slseedrc.configs, 'aws.js'));
+  const { apiVersions, region } = await require(join(slseedrc.configs, 'aws.js'));
 
   AWS.config.update({
     apiVersions,
@@ -59,7 +59,7 @@ async function resolveParam(ssm, name): Promise<SSMParamSet> {
 
     spinner.start(`Setting env file for [${process.env.NODE_ENV}]...`);
 
-    const ssmEnv: string[] = await import(join(slseedrc.configs, 'ssm.env'));
+    const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm.env'));
     const env = [`NODE_ENV=${process.env.NODE_ENV}`];
     const ssm = new AWS.SSM();
 

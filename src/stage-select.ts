@@ -13,16 +13,16 @@ const slseedrc = rcfile('slseed');
  * @returns {Promise<string>} A promise to the selected profile name.
  */
 export default async (env = true): Promise<string> => {
-  const { region, profiles } = await import(join(slseedrc.configs, 'aws'));
+  const { region, profiles } = await require(join(slseedrc.configs, 'aws'));
   const { profile } = await prompt({
     name: 'profile',
     type: 'list',
     message: 'Select target stage:',
-    choices: profiles.keys()
+    choices: Object.keys(profiles)
   });
 
   if (env) {
-    process.env.AWS_PROFILE = profiles.get(profile);
+    process.env.AWS_PROFILE = profiles[String(profile)];
     process.env.NODE_ENV = profile;
   }
 
@@ -30,7 +30,7 @@ export default async (env = true): Promise<string> => {
   AWS.config.update({
     region,
     credentials: new AWS.SharedIniFileCredentials({
-      profile: profiles.get(profile)
+      profile: profiles[String(profile)]
     })
   });
 
