@@ -16,6 +16,17 @@ tasks.set('setup-env', join('setup', 'env.js'));
 tasks.set('deploy', join('deploy', 'index.js'));
 
 /**
+ * Runs the given task.
+ *
+ * @param {string} task The task name.
+ *
+ * @returns {Promise<any>} A promise to the task.
+ */
+function runTask(task): Promise<any> {
+  return import(join(__dirname, task));
+}
+
+/**
  * Tries to execute the task provided on the "do" option.
  *
  * @returns {Promise<void>} A promise to the imported task.
@@ -25,9 +36,7 @@ function processArgv(): Promise<any> {
     throw new Error('The task you requested does not exists!');
   }
 
-  const task = tasks.get(argv.do);
-
-  return import(join(__dirname, task));
+  return runTask(argv.do);
 }
 
 /**
@@ -51,7 +60,7 @@ async function processPrompt(): Promise<any> {
 
   const task = choices.get(key);
 
-  return import(join(__dirname, task));
+  return runTask(tasks.get(task));
 }
 
 (async (): Promise<void> => {

@@ -6,11 +6,11 @@
   "scripts": {
     "test": "nyc mocha -r ts-node/register test/**/*.spec.ts",
     "postversion": "git push --follow-tags",
-    "prebuild": "rm -r lib",
+    "prebuild": "rimraf lib/",
     "build": "tsc",
     "postbuild": "chmod +x lib/cli.js",
-    "docs": "typedoc",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -76,6 +76,7 @@
     "mocha": "^7.1.0",
     "mongoose": "^5.9.3",
     "nyc": "^15.0.0",
+    "rimraf": "^3.0.2",
     "ts-node": "^8.6.2",
     "typescript": "^3.8.3"
   }
