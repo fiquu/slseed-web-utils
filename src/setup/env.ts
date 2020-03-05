@@ -49,8 +49,13 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
     spinner.start('Resolving values...');
 
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm.env'));
-    const env = [`NODE_ENV=${process.env.NODE_ENV}`];
     const ssm = new AWS.SSM();
+
+    const env = [
+      `# Env file for [${process.env.NODE_ENV}] stage.\n`,
+      '# Selected env',
+      `NODE_ENV=${process.env.NODE_ENV}`
+    ];
 
     await Promise.all(ssmEnv.map(paramName => {
       const withPrefix = slseedrc.type === 'app' && !paramName.startsWith('!');
@@ -59,7 +64,10 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
       const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
         const prefix = withPrefix ? 'VUE_APP_' : '';
 
-        env.push(`${prefix}${envVar}=${Parameter.Value}`);
+        env.push(
+          `# SSM:/${Parameter.Name}`,
+          `${prefix}${envVar}=${Parameter.Value}`
+        );
       });
 
       return promise;
