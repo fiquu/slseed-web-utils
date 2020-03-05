@@ -46,7 +46,7 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
   try {
     await stageSelect();
 
-    spinner.start(`Setting ".env.${process.env.NODE_ENV}" file...`);
+    spinner.start('Resolving values...');
 
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm.env'));
     const env = [`NODE_ENV=${process.env.NODE_ENV}`];
@@ -59,17 +59,17 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
       const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
         const prefix = withPrefix ? 'VUE_APP_' : '';
 
-        spinner.info(`${prefix}${envVar}=[ssm:${Parameter.Name}]`);
-
         env.push(`${prefix}${envVar}=${Parameter.Value}`);
       });
 
       return promise;
     }));
 
+    spinner.succeed('SSM params resolved.');
+
     writeFileSync(`.env.${process.env.NODE_ENV}`, env.join('\n'), 'utf8');
 
-    spinner.succeed('Env file saved!');
+    spinner.succeed(`File ${chalk.dim(`.env.${process.env.NODE_ENV}`)} has been saved.`);
   } catch (err) {
     spinner.fail(err.message);
   }

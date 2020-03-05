@@ -23,7 +23,7 @@ tasks.set('deploy', join('deploy', 'index.js'));
  * @returns {Promise<any>} A promise to the task.
  */
 function runTask(task): Promise<any> {
-  return import(join(__dirname, task));
+  return import(join(__dirname, tasks.get(task)));
 }
 
 /**
@@ -53,14 +53,12 @@ async function processPrompt(): Promise<any> {
 
   const { key } = await prompt({
     choices: Array.from(choices.keys()),
-    message: 'Which task do you want to do?',
+    message: 'Which task do you want to run?',
     type: 'list',
     name: 'key'
   });
 
-  const task = choices.get(key);
-
-  return runTask(tasks.get(task));
+  return runTask(choices.get(key));
 }
 
 (async (): Promise<void> => {
