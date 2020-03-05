@@ -1,6 +1,7 @@
 import { writeFileSync } from 'fs';
 import { posix, join } from 'path';
 import rcfile from 'rcfile';
+import chalk from 'chalk';
 import AWS from 'aws-sdk';
 import ora from 'ora';
 
@@ -12,20 +13,6 @@ const spinner = ora();
 interface SSMParamSet {
   Parameter: AWS.SSM.Parameter;
   envVar: string;
-}
-
-/**
- * Initializes the proper env.
- */
-async function init(): Promise<void> {
-  await stageSelect();
-
-  const { apiVersions, region } = await require(join(slseedrc.configs, 'aws.js'));
-
-  AWS.config.update({
-    apiVersions,
-    region
-  });
 }
 
 /**
@@ -53,11 +40,13 @@ async function resolveParam(ssm, name): Promise<SSMParamSet> {
   }
 }
 
+console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
+
 (async (): Promise<void> => {
   try {
-    await init();
+    await stageSelect();
 
-    spinner.start(`Setting env file for [${process.env.NODE_ENV}]...`);
+    spinner.start(`Setting ".env.${process.env.NODE_ENV}" file...`);
 
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm.env'));
     const env = [`NODE_ENV=${process.env.NODE_ENV}`];
@@ -80,9 +69,8 @@ async function resolveParam(ssm, name): Promise<SSMParamSet> {
 
     writeFileSync(`.env.${process.env.NODE_ENV}`, env.join('\n'), 'utf8');
 
-    spinner.succeed('DotEnv file saved!');
+    spinner.succeed('Env file saved!');
   } catch (err) {
     spinner.fail(err.message);
-    throw err;
   }
 })();

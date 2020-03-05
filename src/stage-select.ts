@@ -1,7 +1,7 @@
+import AWS, { SharedIniFileCredentials } from 'aws-sdk';
 import { prompt } from 'inquirer';
 import { join } from 'path';
 import rcfile from 'rcfile';
-import AWS from 'aws-sdk';
 
 const slseedrc = rcfile('slseed');
 
@@ -13,11 +13,11 @@ const slseedrc = rcfile('slseed');
  * @returns {Promise<string>} A promise to the selected profile name.
  */
 export default async (env = true): Promise<string> => {
-  const { region, profiles } = await require(join(slseedrc.configs, 'aws'));
+  const { region, profiles, apiVersions } = await require(join(slseedrc.configs, 'aws'));
   const { profile } = await prompt({
     name: 'profile',
     type: 'list',
-    message: 'Select target stage:',
+    message: 'Which stage do you want to affect?',
     choices: Object.keys(profiles)
   });
 
@@ -26,12 +26,15 @@ export default async (env = true): Promise<string> => {
     process.env.NODE_ENV = profile;
   }
 
+  const credentials: SharedIniFileCredentials = new SharedIniFileCredentials({
+    profile: profiles[String(profile)]
+  });
+
   // Update AWS config
   AWS.config.update({
-    region,
-    credentials: new AWS.SharedIniFileCredentials({
-      profile: profiles[String(profile)]
-    })
+    apiVersions,
+    credentials,
+    region
   });
 
   return profile;

@@ -12,13 +12,6 @@ const slseedrc = rcfile('slseed');
 const spinner = ora();
 
 /**
- * Initializes the proper env.
- */
-async function init(): Promise<void> {
-  await stageSelect();
-}
-
-/**
  * Resolves the S3 bucket name from the SSM parameter.
  *
  * @param {string} name The parameter name.
@@ -83,7 +76,7 @@ function rebuildDists(): void {
 async function checkIfVersionDeployed(bucket: string, version: string): Promise<boolean> {
   const s3 = new AWS.S3();
 
-  spinner.info(`Checking deploy status for [${chalk.bold(`v${version}`)}]...`);
+  spinner.info(`Checking deploy status for "${chalk.bold(`v${version}`)}"...`);
 
   const params: AWS.S3.ListObjectsRequest = {
     Prefix: posix.join(version),
@@ -133,7 +126,7 @@ async function deploy(config, bucket, version): Promise<void> {
 }
 
 (async (): Promise<void> => {
-  await init();
+  await stageSelect();
 
   const config = await require(join(slseedrc.configs, 'deploy'));
 
@@ -148,7 +141,7 @@ async function deploy(config, bucket, version): Promise<void> {
   const deployed = await checkIfVersionDeployed(s3BucketName, version);
 
   if (deployed && !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))) {
-    spinner.warn('Deploy aborted!');
+    spinner.fail('Deploy aborted.');
     return;
   }
 

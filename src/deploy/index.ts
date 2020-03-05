@@ -1,6 +1,9 @@
 import rcfile from 'rcfile';
+import chalk from 'chalk';
 
 const slseedrc = rcfile('slseed');
+
+console.log(`\n${chalk.cyan.bold('Let\'s deploy this application...')}\n`);
 
 switch (slseedrc.type) {
   case 'app':
