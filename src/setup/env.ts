@@ -48,13 +48,17 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     spinner.start('Resolving values...');
 
-    const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm.env'));
+    const logLevels: string[] = await require(join(slseedrc.configs, 'log-levels'));
+    const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm-env'));
+    const { NODE_ENV } = process.env;
     const ssm = new AWS.SSM();
 
     const env = [
-      `# Env file for [${process.env.NODE_ENV}] stage.\n`,
+      `# Env file for [${NODE_ENV}] stage.\n`,
       '# Selected env',
-      `NODE_ENV=${process.env.NODE_ENV}`
+      `NODE_ENV=${NODE_ENV}`,
+      '# Log level',
+      `LOG_LEVEL=${logLevels[String(NODE_ENV)]}`
     ];
 
     await Promise.all(ssmEnv.map(paramName => {
