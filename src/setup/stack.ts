@@ -41,15 +41,19 @@ async function checkIfCurrentStackExists(StackName: CloudFormation.StackName): P
 
   spinner.start('Checking if CloudFormation stack exists...');
 
-  const { Stacks } = await cfm.describeStacks({ StackName }).promise();
+  try {
+    await cfm.describeStacks({ StackName }).promise();
+  } catch (err) {
+    if (err.message.includes('not exist')) {
+      spinner.info('Stack does not exists.');
 
-  if (Stacks.length === 1) {
-    return true;
+      return false;
+    }
+
+    throw err;
   }
 
-  spinner.info('Stack does not exists.');
-
-  return false;
+  return true;
 }
 
 /**
