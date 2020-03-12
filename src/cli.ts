@@ -45,20 +45,27 @@ function processArgv(): Promise<any> {
  * @returns {Promise<any>} A promise to the selected task.
  */
 async function processPrompt(): Promise<any> {
-  const choices = new Map();
-
-  choices.set('Deploy this application', 'deploy');
-  choices.set('Update or create a .env file', 'setup-env');
-  choices.set('Setup the CloudFormation stack', 'setup-stack');
-
-  const { key } = await prompt({
-    choices: Array.from(choices.keys()),
+  const { task } = await prompt({
     message: 'Which task do you want to run?',
     type: 'list',
-    name: 'key'
+    name: 'task',
+    choices: [
+      {
+        name: 'Deploy this application',
+        value: 'deploy'
+      },
+      {
+        name: 'Update or create a .env file',
+        value: 'setup-env'
+      },
+      {
+        name: 'Setup the CloudFormation stack',
+        value: 'setup-stack'
+      }
+    ],
   });
 
-  return runTask(choices.get(key));
+  return runTask(task);
 }
 
 (async (): Promise<void> => {

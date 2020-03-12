@@ -1,3 +1,4 @@
+import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
 import { join, posix } from 'path';
 import rcfile from 'rcfile';
@@ -93,7 +94,7 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   const { region } = await require(join(slseedrc.configs, 'aws'));
 
   const s3DeployArgs = [
-    join(slseedrc.dist, '**'),
+    join(slseedrc.dist, '**/*'),
     '--profile', process.env.AWS_PROFILE,
     '--filePrefix', version,
     '--cwd', slseedrc.dist,
@@ -107,7 +108,10 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   if (config.distId) {
     const distId = await getSSMParamValue(config.distId);
 
-    s3DeployArgs.push('--distId', distId, '--invalidate');
+    s3DeployArgs.push(
+      '--distId', distId,
+      '--invalidate', '"/"'
+    );
   }
 
   spinner.stop();
@@ -118,17 +122,48 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   });
 }
 
+/**
+ *
+ */
+async function promptPrepTasks(): Promise<string> {
+  const question: ListQuestion = {
+    name: 'tasks',
+    type: 'list',
+    message: 'Select preparation tasks:',
+    choices: [
+      {
+        name: 'Bump patch version and rebuild dists.',
+        value: 'version-rebuild'
+      },
+      {
+        name: 'Rebuild dists only.',
+        value: 'rebuild'
+      },
+      {
+        name: 'Nothing',
+        value: 'nothing'
+      }
+    ]
+  };
+
+  const { tasks } = await prompt(question);
+
+  return tasks;
+}
+
 (async (): Promise<void> => {
   await stageSelect();
 
   const config: AppDeployConfig = await require(join(slseedrc.configs, 'deploy'));
 
-  spinner.start(`Deploying for [${process.env.NODE_ENV}]...`);
+  spinner.info(`Deploying for [${process.env.NODE_ENV}]...`);
 
-  if (await confirmPrompt('Bump patch version and rebuild dists?')) {
+  const tasks = await promptPrepTasks();
+
+  if (tasks === 'version-rebuild') {
     bumpPatchVersion();
     rebuildDists();
-  } else if (await confirmPrompt('Rebuild dists?')) {
+  } else if (tasks === 'rebuild') {
     rebuildDists();
   }
 
