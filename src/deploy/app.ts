@@ -11,17 +11,22 @@ import stageSelect from '../stage-select';
 const slseedrc = rcfile('slseed');
 const spinner = ora();
 
+export interface AppDeployConfig {
+  distId: string;
+  bucket: string;
+}
+
 /**
- * Resolves the S3 bucket name from the SSM parameter.
+ * Resolves the SSM parameter value.
  *
  * @param {string} name The parameter name.
  *
  * @returns {Promise<string>} A promise to the bucket name.
  */
-async function getS3BucketName(name: string): Promise<string> {
+async function getSSMParamValue(name: string): Promise<string> {
   const ssm = new AWS.SSM();
 
-  spinner.info('Resolving deploy S3 bucket name...');
+  spinner.info(`Resolving SSM parameter value for "${name}"...`);
 
   const params = {
     Name: `/${slseedrc.stack}/${process.env.NODE_ENV}/${name}`,
@@ -34,25 +39,13 @@ async function getS3BucketName(name: string): Promise<string> {
 }
 
 /**
- * Resolves the CloudFront distribution Id from the SSM parameter.
- *
- * @param {string} name The parameter name.
- *
- * @returns {Promise<string>} A promise to the CloudFront distribution Id.
+ * Bumps the patch version.
  */
-async function getCloudFrontDistId(name: string): Promise<string> {
-  const ssm = new AWS.SSM();
-
-  spinner.info('Resolving deploy CloudFront distribution Id...');
-
-  const params = {
-    Name: `/${slseedrc.stack}/${process.env.NODE_ENV}/${name}`,
-    WithDecryption: true
-  };
-
-  const { Parameter } = await ssm.getParameter(params).promise();
-
-  return Parameter.Value;
+function bumpPatchVersion(): void {
+  spawnSync('npm version patch', [], {
+    stdio: 'inherit',
+    shell: true
+  });
 }
 
 /**
@@ -92,11 +85,11 @@ async function checkIfVersionDeployed(bucket: string, version: string): Promise<
 /**
  * Deploys the distributables to S3.
  *
- * @param {object} config The deploy config.
- * @param {string} bucket The deploy S3 bucket name.
+ * @param {object} config The config object.
+ * @param {string} bucket The deploy S3 Bucket name.
  * @param {string} version The current version.
  */
-async function deploy(config, bucket, version): Promise<void> {
+async function deploy(config: AppDeployConfig, bucket: string, version: string): Promise<void> {
   const { region } = await require(join(slseedrc.configs, 'aws'));
 
   const s3DeployArgs = [
@@ -111,10 +104,10 @@ async function deploy(config, bucket, version): Promise<void> {
     '--gzip'
   ];
 
-  if (config.cloudfront && config.cloudfront.ssmParam) {
-    const cloudFrontDistId = await getCloudFrontDistId(config.cloudfront.ssmParam);
+  if (config.distId) {
+    const distId = await getSSMParamValue(config.distId);
 
-    s3DeployArgs.push('--distId', cloudFrontDistId, '--invalidate');
+    s3DeployArgs.push('--distId', distId, '--invalidate');
   }
 
   spinner.stop();
@@ -128,17 +121,20 @@ async function deploy(config, bucket, version): Promise<void> {
 (async (): Promise<void> => {
   await stageSelect();
 
-  const config = await require(join(slseedrc.configs, 'deploy'));
+  const config: AppDeployConfig = await require(join(slseedrc.configs, 'deploy'));
 
   spinner.start(`Deploying for [${process.env.NODE_ENV}]...`);
 
-  if (await confirmPrompt('Rebuild distributables?')) {
+  if (await confirmPrompt('Bump patch version and rebuild dists?')) {
+    bumpPatchVersion();
+    rebuildDists();
+  } else if (await confirmPrompt('Rebuild dists?')) {
     rebuildDists();
   }
 
   const { version } = await require(join(slseedrc.root, 'package.json'));
-  const s3BucketName = await getS3BucketName(config.s3.ssmParam);
-  const deployed = await checkIfVersionDeployed(s3BucketName, version);
+  const bucket = await getSSMParamValue(config.bucket);
+  const deployed = await checkIfVersionDeployed(bucket, version);
 
   if (deployed && !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))) {
     spinner.fail('Deploy aborted.');
@@ -147,7 +143,7 @@ async function deploy(config, bucket, version): Promise<void> {
 
   spinner.info('Starting deploy process...');
 
-  await deploy(config, s3BucketName, version);
+  await deploy(config, bucket, version);
 
   spinner.succeed('Deploy complete!');
 })();

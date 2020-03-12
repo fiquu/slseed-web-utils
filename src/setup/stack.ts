@@ -68,7 +68,7 @@ function getParamsQuestions(isUpdate: boolean, values: InputQuestion[]): InputQu
       ...value,
       default: isUpdate ? undefined : value.default,
       message: `${value.message}${isUpdate ? previous : ''}:`,
-      validate: (val: string): boolean => {
+      validate: (val: string): string | boolean | Promise<string | boolean> => {
         return (isUpdate && is.empty(val)) || value.validate(val);
       }
     };

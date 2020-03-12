@@ -48,9 +48,11 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     spinner.start('Resolving values...');
 
+    const { NODE_ENV } = process.env;
+
+    const fileName = `.env.${NODE_ENV}${slseedrc.type === 'app' ? '.local' : ''}`;
     const logLevels: string[] = await require(join(slseedrc.configs, 'log-levels'));
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm-env'));
-    const { NODE_ENV } = process.env;
     const ssm = new AWS.SSM();
 
     const env = [
@@ -79,9 +81,9 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     spinner.succeed('SSM params resolved.');
 
-    writeFileSync(`.env.${process.env.NODE_ENV}`, env.join('\n'), 'utf8');
+    writeFileSync(fileName, env.join('\n'), 'utf8');
 
-    spinner.succeed(`File ${chalk.dim(`.env.${process.env.NODE_ENV}`)} has been saved.`);
+    spinner.succeed(`File ${chalk.dim(fileName)} has been saved.`);
   } catch (err) {
     spinner.fail(err.message);
   }
