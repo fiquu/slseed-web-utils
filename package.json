@@ -63,7 +63,7 @@
     "mongoose": "^5.9.2"
   },
   "devDependencies": {
-    "@fiquu/eslint-config": "^2.1.0",
+    "@fiquu/eslint-config": "^3.0.2",
     "@types/chai": "^4.2.11",
     "@types/faker": "^4.1.10",
     "@types/glob": "^7.1.1",
