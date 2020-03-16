@@ -43,7 +43,7 @@
     "@types/aws-sdk": "^2.7.0",
     "@types/inquirer": "^6.5.0",
     "@types/mongoose": "^5.7.6",
-    "@types/node": "^13.9.0",
+    "@types/node": "^13.9.1",
     "@types/yargs": "^15.0.4",
     "chalk": "^3.0.0",
     "dotenv": "^8.2.0",
@@ -56,21 +56,21 @@
     "rcfile": "^1.0.3",
     "url-slug": "^2.3.0",
     "username": "^5.1.0",
-    "yargs": "^15.3.0"
+    "yargs": "^15.3.1"
   },
   "peerDependencies": {
     "aws-sdk": "^2.630.0",
     "mongoose": "^5.9.2"
   },
   "devDependencies": {
-    "@fiquu/eslint-config": "^2.0.0",
-    "@types/chai": "^4.2.10",
+    "@fiquu/eslint-config": "^2.1.0",
+    "@types/chai": "^4.2.11",
     "@types/faker": "^4.1.10",
     "@types/glob": "^7.1.1",
     "@types/mocha": "^7.0.2",
-    "@typescript-eslint/eslint-plugin": "^2.23.0",
-    "@typescript-eslint/parser": "^2.23.0",
-    "aws-sdk": "^2.638.0",
+    "@typescript-eslint/eslint-plugin": "^2.24.0",
+    "@typescript-eslint/parser": "^2.24.0",
+    "aws-sdk": "^2.640.0",
     "chai": "^4.2.0",
     "eslint": "^6.8.0",
     "faker": "^4.1.0",
