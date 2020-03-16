@@ -141,7 +141,7 @@ async function describeStacks(StackName: CloudFormation.StackName, isUpdate: boo
     case 'CREATE_COMPLETE':
     case 'UPDATE_COMPLETE':
       spinner.succeed(`Stack successfully ${isUpdate ? 'updated' : 'created'}!`);
-      console.info(Outputs);
+      console.info('Outputs:', Outputs);
       break;
 
     default:
