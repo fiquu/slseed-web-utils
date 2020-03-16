@@ -51,9 +51,9 @@
     "glob": "^7.1.6",
     "greeting-time": "^1.0.0",
     "inquirer": "^7.1.0",
+    "mime-types": "^2.1.26",
     "ora": "^4.0.3",
     "rcfile": "^1.0.3",
-    "s3-deploy": "^1.4.0",
     "url-slug": "^2.3.0",
     "username": "^5.1.0",
     "yargs": "^15.3.0"
@@ -66,6 +66,7 @@
     "@fiquu/eslint-config": "^2.0.0",
     "@types/chai": "^4.2.10",
     "@types/faker": "^4.1.10",
+    "@types/glob": "^7.1.1",
     "@types/mocha": "^7.0.2",
     "@typescript-eslint/eslint-plugin": "^2.23.0",
     "@typescript-eslint/parser": "^2.23.0",
