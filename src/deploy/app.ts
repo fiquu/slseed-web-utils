@@ -2,6 +2,7 @@ import { resolve, join, extname, posix } from 'path';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
 import { createReadStream } from 'fs';
+import { format } from 'util';
 import mime from 'mime-types';
 import dotenv from 'dotenv';
 import rcfile from 'rcfile';
@@ -56,7 +57,7 @@ async function checkIfVersionDeployed(bucket: string, version: string): Promise<
   spinner.info(`Checking deploy status for "${chalk.bold(`v${version}`)}"...`);
 
   const params: AWS.S3.ListObjectsRequest = {
-    Prefix: posix.join(version),
+    Prefix: `v${version}`,
     Bucket: bucket,
     MaxKeys: 1
   };
@@ -72,35 +73,49 @@ async function checkIfVersionDeployed(bucket: string, version: string): Promise<
  * @returns {string[]} The list of files to deploy.
  */
 function listFilesToDeploy(): string[] {
-  return glob.sync(`${slseedrc.dist}/**/*`);
+  return glob.sync(`${slseedrc.dist}/**/*`, {
+    nodir: true // List files only
+  });
 }
 
 /**
- * @param {string} bucket The bucket to deploy to.
+ * @param {string} Bucket The bucket to deploy to.
  * @param {string} version The version to deploy.
  *
  * @returns {Promise} A promise to the file uploads.
  */
-function uploadFiles(bucket: string, version: string): Promise<AWS.S3.ManagedUpload.SendData[]> {
+function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpload.SendData[]> {
   const s3 = new AWS.S3();
 
   const files = listFilesToDeploy();
 
-  return Promise.all(files.map(file => {
-    const filename = file.replace(slseedrc.dist, '');
-    const Key = posix.join(version, filename);
+  const infoText = `Please wait while the files are uploaded (${chalk.cyan('%d')}/${chalk.cyan.bold(files.length)})...`;
+  let uploaded = 0;
+  let index = 0;
 
-    spinner.info(`Uploading "${chalk.bold(`${bucket}/${Key}`)}"...`);
+  const uploads = Promise.all(files.map(file => {
+    const filename = file.replace(slseedrc.dist, '');
+    const Key = posix.join(`v${version}`, filename);
+
+    spinner.info(`[${chalk.cyan(++index)}] ${chalk.bold(`"/${Key}"`)}...`);
 
     const params = {
       ContentType: mime.contentType(extname(file)) || undefined,
-      Bucket: process.env.PUBLIC_APP_S3_BUCKET,
       Body: createReadStream(file),
+      Bucket,
       Key
     };
 
-    return s3.upload(params).promise();
+    return s3.upload(params).promise().then(data => {
+      spinner.start(format(infoText, ++uploaded));
+
+      return data;
+    });
   }));
+
+  spinner.start(format(infoText, 0));
+
+  return uploads;
 }
 
 type CloudfrontUpdateResponse = Promise<PromiseResult<AWS.CloudFront.UpdateDistributionResult, AWS.AWSError>>;
@@ -111,7 +126,6 @@ type CloudfrontUpdateResponse = Promise<PromiseResult<AWS.CloudFront.UpdateDistr
  * @param {string} distId The distribution id.
  * @param {string} bucket The S3 bucket name.
  * @param {string} version The version to deploy
- * @param {string} basedir The deployed basedir.
  *
  * @returns {Promise} A promise to the request.
  */
@@ -132,14 +146,14 @@ async function updateDistConfig(distId, bucket, version): CloudfrontUpdateRespon
           {
             ...distConfig.DistributionConfig.Origins.Items.pop(), // Copy last origin's config
             DomainName: `${bucket}.s3.amazonaws.com`,
-            Id: `S3-${bucket}/${version}`,
-            OriginPath: `/${version}`
+            Id: `S3-${bucket}/v${version}`,
+            OriginPath: `/v${version}`
           }
         ]
       },
       DefaultCacheBehavior: {
         ...distConfig.DistributionConfig.DefaultCacheBehavior,
-        TargetOriginId: `S3-${bucket}/${version}`
+        TargetOriginId: `S3-${bucket}/v${version}`
       }
     }
   }).promise();
@@ -182,6 +196,7 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 
   await uploadFiles(bucket, version);
 
+  spinner.prefixText = '';
   spinner.succeed('All files uploaded!');
 
   spinner.start('Updating CloudFront distribution...');
@@ -199,8 +214,6 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 
     spinner.succeed('Invalidation requested!');
   }
-
-  spinner.succeed('Deploy complete!');
 }
 
 /**
