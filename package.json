@@ -40,6 +40,7 @@
     "npm": ">= 6"
   },
   "dependencies": {
+    "@fiquu/is": "^1.1.0",
     "@types/aws-sdk": "^2.7.0",
     "@types/inquirer": "^6.5.0",
     "@types/mongoose": "^5.7.6",
@@ -47,7 +48,6 @@
     "@types/yargs": "^15.0.4",
     "chalk": "^3.0.0",
     "dotenv": "^8.2.0",
-    "fi-is": "^4.0.0",
     "glob": "^7.1.6",
     "greeting-time": "^1.0.0",
     "inquirer": "^7.1.0",

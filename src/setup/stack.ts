@@ -3,9 +3,9 @@ import { prompt, InputQuestion, Answers } from 'inquirer';
 import slug from 'url-slug';
 import { join } from 'path';
 import rcfile from 'rcfile';
+import is from '@fiquu/is';
 import chalk from 'chalk';
 import AWS from 'aws-sdk';
-import is from 'fi-is';
 import ora from 'ora';
 
 import confirmPrompt from '../confirm-prompt';
