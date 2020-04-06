@@ -36,17 +36,12 @@
     "slseed-utils": "./lib/cli.js"
   },
   "engines": {
-    "node": ">= 12",
-    "npm": ">= 6"
+    "node": ">=12.0.0",
+    "npm": ">=6.0.0"
   },
   "dependencies": {
-    "@fiquu/is": "^1.2.0",
-    "@types/aws-sdk": "^2.7.0",
-    "@types/inquirer": "^6.5.0",
-    "@types/mongoose": "^5.7.8",
-    "@types/node": "^13.9.8",
-    "@types/yargs": "^15.0.4",
-    "chalk": "^3.0.0",
+    "@fiquu/is": "^1.2.1",
+    "chalk": "^4.0.0",
     "dotenv": "^8.2.0",
     "glob": "^7.1.6",
     "greeting-time": "^1.0.0",
@@ -64,21 +59,26 @@
   },
   "devDependencies": {
     "@fiquu/eslint-config": "^3.0.2",
+    "@types/aws-sdk": "^2.7.0",
     "@types/chai": "^4.2.11",
     "@types/faker": "^4.1.11",
     "@types/glob": "^7.1.1",
+    "@types/inquirer": "^6.5.0",
     "@types/mocha": "^7.0.2",
+    "@types/mongoose": "^5.7.8",
+    "@types/node": "^13.11.0",
+    "@types/yargs": "^15.0.4",
     "@typescript-eslint/eslint-plugin": "^2.26.0",
     "@typescript-eslint/parser": "^2.26.0",
-    "aws-sdk": "^2.650.0",
+    "aws-sdk": "^2.653.0",
     "chai": "^4.2.0",
     "eslint": "^6.8.0",
     "faker": "^4.1.0",
     "mocha": "^7.1.1",
     "mongoose": "^5.9.7",
-    "nyc": "^15.0.0",
+    "nyc": "^15.0.1",
     "rimraf": "^3.0.2",
-    "ts-node": "^8.8.1",
+    "ts-node": "^8.8.2",
     "typescript": "^3.8.3"
   }
 }
