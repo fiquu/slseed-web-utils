@@ -36,7 +36,7 @@ function bumpPatchVersion(): void {
   });
 
   if (spawn.stderr) {
-    throw spawn.stderr;
+    throw new Error(spawn.stderr.toString());
   }
 }
 
@@ -50,7 +50,7 @@ function rebuildDists(): void {
   });
 
   if (spawn.stderr) {
-    throw spawn.stderr;
+    throw new Error(spawn.stderr.toString());
   }
 }
 

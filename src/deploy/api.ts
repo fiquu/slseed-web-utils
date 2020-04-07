@@ -11,6 +11,6 @@ import stageSelect from '../stage-select';
   });
 
   if (spawn.stderr) {
-    throw spawn.stderr;
+    throw new Error(spawn.stderr.toString());
   }
 })();
