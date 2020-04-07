@@ -266,9 +266,9 @@ async function promptPrepTasks(): Promise<string> {
       rebuildDists();
     }
 
-    const { version } = slseedrc.package;
     const bucket = process.env[String(config.bucket)];
-    const deployed = await checkIfVersionDeployed(bucket, version);
+    const deployed = await checkIfVersionDeployed(bucket, slseedrc.package.version);
+    const { package: pkg } = rcfile('slseed'); // Refresh version.
 
     if (deployed && !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))) {
       spinner.fail('Deploy aborted.');
@@ -277,7 +277,7 @@ async function promptPrepTasks(): Promise<string> {
 
     spinner.info('Starting deploy process...');
 
-    await deploy(config, bucket, version);
+    await deploy(config, bucket, pkg.version);
 
     spinner.succeed('Deploy complete!');
   } catch (err) {
