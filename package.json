@@ -1,6 +1,6 @@
 {
   "name": "@fiquu/slseed-web-utils",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "fiquu Slseed web utils and tools.",
   "main": "lib/slseed-utils.js",
   "scripts": {
