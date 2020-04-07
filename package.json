@@ -42,6 +42,7 @@
   "dependencies": {
     "@fiquu/is": "^1.2.2",
     "chalk": "^4.0.0",
+    "clear-module": "^4.1.1",
     "dotenv": "^8.2.0",
     "glob": "^7.1.6",
     "greeting-time": "^1.0.0",

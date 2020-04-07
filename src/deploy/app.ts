@@ -1,6 +1,7 @@
 import { resolve, join, extname, posix } from 'path';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
+import clearModule from 'clear-module';
 import { createReadStream } from 'fs';
 import { format } from 'util';
 import mime from 'mime-types';
@@ -217,6 +218,17 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 }
 
 /**
+ * @returns {string} The new version number.
+ */
+function getNewVersion(): string {
+  clearModule.all();
+
+  const { version } = rcfile('slseed').package;
+
+  return version;
+}
+
+/**
  * Prompts for preparation tasks.
  */
 async function promptPrepTasks(): Promise<string> {
@@ -266,7 +278,7 @@ async function promptPrepTasks(): Promise<string> {
       rebuildDists();
     }
 
-    const { version } = rcfile('slseed').package; // Refresh version.
+    const version = getNewVersion();
     const bucket = process.env[String(config.bucket)];
     const deployed = await checkIfVersionDeployed(bucket, version);
 
