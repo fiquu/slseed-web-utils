@@ -31,12 +31,12 @@ export interface AppDeployConfig {
  */
 function bumpPatchVersion(): void {
   const spawn = spawnSync('npm version patch', [], {
-    stdio: ['inherit', 'inherit', 'pipe'],
+    stdio: 'inherit',
     shell: true
   });
 
-  if (spawn.stderr) {
-    throw new Error(spawn.stderr.toString());
+  if (spawn.status !== 0 && spawn.stderr) {
+    throw new Error(String(spawn.stderr).toString());
   }
 }
 
@@ -45,12 +45,12 @@ function bumpPatchVersion(): void {
  */
 function rebuildDists(): void {
   const spawn = spawnSync('npm run build', [], {
-    stdio: ['inherit', 'inherit', 'pipe'],
+    stdio: 'inherit',
     shell: true
   });
 
-  if (spawn.stderr) {
-    throw new Error(spawn.stderr.toString());
+  if (spawn.status !== 0 && spawn.stderr) {
+    throw new Error(String(spawn.stderr).toString());
   }
 }
 

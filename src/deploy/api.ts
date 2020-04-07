@@ -6,11 +6,11 @@ import stageSelect from '../stage-select';
   await stageSelect();
 
   const spawn = spawnSync('sls', ['deploy', '--stage', process.env.NODE_ENV], {
-    stdio: ['inherit', 'inherit', 'pipe'],
+    stdio: 'inherit',
     shell: true
   });
 
-  if (spawn.stderr) {
-    throw new Error(spawn.stderr.toString());
+  if (spawn.status !== 0 && spawn.stderr) {
+    throw new Error(String(spawn.stderr).toString());
   }
 })();
