@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import { resolve, join, extname, posix } from 'path';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
@@ -28,20 +30,28 @@ export interface AppDeployConfig {
  * Bumps the patch version.
  */
 function bumpPatchVersion(): void {
-  spawnSync('npm version patch', [], {
-    stdio: 'inherit',
+  const spawn = spawnSync('npm version patch', [], {
+    stdio: ['inherit', 'inherit', 'pipe'],
     shell: true
   });
+
+  if (spawn.stderr) {
+    throw spawn.stderr;
+  }
 }
 
 /**
  * Starts the build task.
  */
 function rebuildDists(): void {
-  spawnSync('npm run build', [], {
-    stdio: 'inherit',
+  const spawn = spawnSync('npm run build', [], {
+    stdio: ['inherit', 'inherit', 'pipe'],
     shell: true
   });
+
+  if (spawn.stderr) {
+    throw spawn.stderr;
+  }
 }
 
 /**
