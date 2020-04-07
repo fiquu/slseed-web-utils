@@ -281,11 +281,15 @@ async function promptPrepTasks(): Promise<string> {
 
     const tasks = await promptPrepTasks();
 
-    if (tasks === 'version-rebuild') {
-      bumpPatchVersion();
-      rebuildDists();
-    } else if (tasks === 'rebuild') {
-      rebuildDists();
+    try {
+      if (tasks === 'version-rebuild') {
+        bumpPatchVersion();
+        rebuildDists();
+      } else if (tasks === 'rebuild') {
+        rebuildDists();
+      }
+    } catch (err) {
+      throw new Error('Preparation tasks failed');
     }
 
     const version = getNewVersion();
