@@ -30,13 +30,12 @@ export interface AppDeployConfig {
  * Bumps the patch version.
  */
 function bumpPatchVersion(): void {
-  const spawn = spawnSync('npm version patch', [], {
-    stdio: 'inherit',
-    shell: true
+  const spawn = spawnSync('npm', ['version', 'patch'], {
+    stdio: 'inherit'
   });
 
-  if (spawn.status !== 0 && spawn.stderr) {
-    throw new Error(String(spawn.stderr).toString());
+  if (spawn.status !== 0) {
+    throw new Error();
   }
 }
 
@@ -44,13 +43,12 @@ function bumpPatchVersion(): void {
  * Starts the build task.
  */
 function rebuildDists(): void {
-  const spawn = spawnSync('npm run build', [], {
-    stdio: 'inherit',
-    shell: true
+  const spawn = spawnSync('npm', ['run', 'build'], {
+    stdio: 'inherit'
   });
 
-  if (spawn.status !== 0 && spawn.stderr) {
-    throw new Error(String(spawn.stderr).toString());
+  if (spawn.status !== 0) {
+    throw new Error();
   }
 }
 
@@ -289,7 +287,7 @@ async function promptPrepTasks(): Promise<string> {
         rebuildDists();
       }
     } catch (err) {
-      throw new Error('Preparation tasks failed');
+      throw new Error('Preparation task failed!');
     }
 
     const version = getNewVersion();
@@ -308,8 +306,7 @@ async function promptPrepTasks(): Promise<string> {
     spinner.succeed('Deploy complete!');
   } catch (err) {
     spinner.fail(err.message);
-
-    throw err;
+    process.exitCode = 1;
   }
 })();
 
