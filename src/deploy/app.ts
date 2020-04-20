@@ -194,6 +194,41 @@ function invalidateDist(distId): Promise<PromiseResult<AWS.CloudFront.CreateInva
 }
 
 /**
+ * @param {string} Id The distribution id.
+ */
+async function getDistStatus(Id): Promise<string> {
+  const cloudfront = new AWS.CloudFront();
+
+  const { Distribution } = await cloudfront.getDistribution({ Id }).promise();
+
+  return Distribution.Status;
+}
+
+/**
+ * Checks for the stack status.
+ *
+ * @param {string} Id The distribution Id name.
+ */
+async function waitForDeployed(Id: string): Promise<boolean> {
+  spinner.info('You can skip the check process if you wish by pressing [CTRL+C].');
+  spinner.start('Checking CloudFront status (this may take several minutes)...');
+
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(() => {
+      getDistStatus(Id).then(status => {
+        if (status === 'Deployed') {
+          clearInterval(interval);
+
+          resolve(true);
+
+          return;
+        }
+      }).catch(reject);
+    }, 5000);
+  });
+}
+
+/**
  * Deploys the distributables to S3.
  *
  * @param {object} config The config object.
@@ -217,11 +252,19 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   spinner.succeed('CloudFront distribution updated.');
 
   if (await confirmPrompt('Invalidate the distribution?')) {
-    spinner.start('Requesting invalidation...');
+    spinner.info('Waiting for Distribution to be ready...');
 
-    await invalidateDist(distId);
+    if (await waitForDeployed(distId)) {
+      spinner.info('Requesting invalidation...');
 
-    spinner.succeed('Invalidation requested!');
+      await invalidateDist(distId);
+
+      spinner.info('Invalidation in progress...');
+
+      await waitForDeployed(distId);
+
+      spinner.succeed('Invalidation complete!');
+    }
   }
 }
 
