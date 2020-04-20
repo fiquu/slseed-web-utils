@@ -1,9 +1,9 @@
 /* eslint-disable max-lines */
 
 import { resolve, join, extname, posix } from 'path';
+import { PromiseResult } from 'aws-sdk/lib/request';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
-import clearModule from 'clear-module';
 import { createReadStream } from 'fs';
 import { format } from 'util';
 import mime from 'mime-types';
@@ -14,17 +14,15 @@ import chalk from 'chalk';
 import glob from 'glob';
 import ora from 'ora';
 
-import confirmPrompt from '../confirm-prompt';
-import stageSelect from '../stage-select';
-import { PromiseResult } from 'aws-sdk/lib/request';
+import { waitForDeployed, invalidateDist } from './invalidation';
+import { prunePreviousVersions } from './prune';
+import confirmPrompt from '../../confirm-prompt';
+import stageSelect from '../../stage-select';
+import { AppDeployConfig } from './types';
+import { getNewVersion } from './utils';
 
 const slseedrc = rcfile('slseed');
 const spinner = ora();
-
-export interface AppDeployConfig {
-  distId: string;
-  bucket: string;
-}
 
 /**
  * Bumps the patch version.
@@ -169,66 +167,6 @@ async function updateDistConfig(distId, bucket, version): CloudfrontUpdateRespon
 }
 
 /**
- * Invalidates the deploy CloudFront distribution.
- *
- * @param {string} distId The distribution id.
- *
- * @returns {Promise} A promise to the invalidation.
- */
-function invalidateDist(distId): Promise<PromiseResult<AWS.CloudFront.CreateInvalidationResult, AWS.AWSError>> {
-  const cloudfront = new AWS.CloudFront();
-
-  const Items = ['/*'];
-  const params = {
-    DistributionId: distId,
-    InvalidationBatch: {
-      CallerReference: String(Date.now()),
-      Paths: {
-        Quantity: Items.length,
-        Items
-      }
-    }
-  };
-
-  return cloudfront.createInvalidation(params).promise();
-}
-
-/**
- * @param {string} Id The distribution id.
- */
-async function getDistStatus(Id): Promise<string> {
-  const cloudfront = new AWS.CloudFront();
-
-  const { Distribution } = await cloudfront.getDistribution({ Id }).promise();
-
-  return Distribution.Status;
-}
-
-/**
- * Checks for the stack status.
- *
- * @param {string} Id The distribution Id name.
- */
-async function waitForDeployed(Id: string): Promise<boolean> {
-  spinner.info('You can skip the check process if you wish by pressing [CTRL+C].');
-  spinner.start('Checking CloudFront status (this may take several minutes)...');
-
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(() => {
-      getDistStatus(Id).then(status => {
-        if (status === 'Deployed') {
-          clearInterval(interval);
-
-          resolve(true);
-
-          return;
-        }
-      }).catch(reject);
-    }, 5000);
-  });
-}
-
-/**
  * Deploys the distributables to S3.
  *
  * @param {object} config The config object.
@@ -252,10 +190,12 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   spinner.succeed('CloudFront distribution updated.');
 
   if (await confirmPrompt('Invalidate the distribution?')) {
-    spinner.info('Waiting for Distribution to be ready...');
+    spinner.start('Waiting for Distribution to be ready (this may take several minutes)...');
 
     if (await waitForDeployed(distId)) {
       spinner.info('Requesting invalidation...');
+
+      spinner.start('Waiting for Distribution to be ready (this may take several minutes)...');
 
       await invalidateDist(distId);
 
@@ -264,19 +204,12 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
       await waitForDeployed(distId);
 
       spinner.succeed('Invalidation complete!');
+
+      if (await confirmPrompt('Prune old deployed versions?')) {
+        await prunePreviousVersions(bucket, version);
+      }
     }
   }
-}
-
-/**
- * @returns {string} The new version number.
- */
-function getNewVersion(): string {
-  clearModule.all();
-
-  const { version } = rcfile('slseed').package;
-
-  return version;
 }
 
 /**
@@ -311,11 +244,15 @@ async function promptPrepTasks(): Promise<string> {
 (async (): Promise<void> => {
   await stageSelect();
 
-  try {
-    dotenv.config({
-      path: resolve(process.cwd(), `.env.${process.env.NODE_ENV}.local`)
-    });
+  const { error } = dotenv.config({
+    path: resolve(process.cwd(), `.env.${process.env.NODE_ENV}.local`)
+  });
 
+  if (error) {
+    throw error;
+  }
+
+  try {
     const config: AppDeployConfig = await require(join(slseedrc.configs, 'deploy'));
 
     spinner.info(`Deploying for [${process.env.NODE_ENV}]...`);

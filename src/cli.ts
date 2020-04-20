@@ -7,13 +7,16 @@ import { prompt } from 'inquirer';
 import username from 'username';
 import { argv } from 'yargs';
 import { join } from 'path';
+import rcfile from 'rcfile';
 import chalk from 'chalk';
 
+const slseedrc = rcfile('slseed');
 const tasks = new Map();
 
 tasks.set('setup-stack', join('setup', 'stack.js'));
 tasks.set('setup-env', join('setup', 'env.js'));
 tasks.set('deploy', join('deploy', 'index.js'));
+tasks.set('prune', join('deploy', 'prune.js'));
 
 /**
  * Runs the given task.
@@ -45,24 +48,33 @@ function processArgv(): Promise<any> {
  * @returns {Promise<any>} A promise to the selected task.
  */
 async function processPrompt(): Promise<any> {
+  const choices = [
+    {
+      name: 'Deploy this application',
+      value: 'deploy'
+    },
+    {
+      name: 'Update or create a .env file',
+      value: 'setup-env'
+    },
+    {
+      name: 'Setup the CloudFormation stack',
+      value: 'setup-stack'
+    }
+  ];
+
+  if (slseedrc.type === 'app') {
+    choices.push({
+      name: 'Prune previously deployed versions',
+      value: 'prune'
+    });
+  }
+
   const { task } = await prompt({
     message: 'Which task do you want to run?',
     type: 'list',
     name: 'task',
-    choices: [
-      {
-        name: 'Deploy this application',
-        value: 'deploy'
-      },
-      {
-        name: 'Update or create a .env file',
-        value: 'setup-env'
-      },
-      {
-        name: 'Setup the CloudFormation stack',
-        value: 'setup-stack'
-      }
-    ],
+    choices
   });
 
   return runTask(task);
