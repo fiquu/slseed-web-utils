@@ -16,7 +16,7 @@ export async function listVersionsInBucket(Bucket: string) {
     Bucket
   }).promise();
 
-  return CommonPrefixes.map(({ Prefix }) => Prefix.replace(/\/$/, '').replace(/^v/, '')).reverse();
+  return CommonPrefixes.map(({ Prefix }) => Prefix.replace(/^v?([^/]+)\/?$/, '$1')).reverse();
 }
 
 /**
@@ -34,9 +34,9 @@ export async function deleteVersionFromBucket(Bucket: string, version: string) {
     Bucket
   }).promise();
 
-  spinner.start(`Deleting "${version}" objects...`);
-
   const Objects = Contents.map(({ Key }) => ({ Key }));
+
+  spinner.start(`Deleting ${Objects.length} "${version}" objects...`);
 
   await s3.deleteObjects({
     Bucket,
