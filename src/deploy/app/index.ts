@@ -25,7 +25,7 @@ import { getNewVersion } from './utils';
 
 const specFiles = {
   gzip: ['.js', '.css', '.json', '.ico', '.map', '.xml', '.txt', '.svg', '.eot', '.ttf', '.woff', '.woff2'],
-  pwa: ['index.html', 'service-worker.js', 'manifest.json'],
+  pwa: ['index.html', 'service-worker.js', 'manifest.json']
 };
 
 const slseedrc = rcfile('slseed');
@@ -114,6 +114,7 @@ function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpl
     spinner.info(`[${chalk.cyan(++index)}] ${chalk.bold(`"/${Key}"`)}...`);
 
     const params: PutObjectRequest = {
+      ContentType: mime.contentType(extname(file)) || undefined,
       Bucket,
       Key
     };
@@ -126,7 +127,6 @@ function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpl
       params.Body = zlib.gzipSync(readFileSync(file), { level: 9 });
       params.ContentEncoding = 'gzip';
     } else {
-      params.ContentType = mime.contentType(extname(file)) || undefined;
       params.Body = createReadStream(file);
     }
 
