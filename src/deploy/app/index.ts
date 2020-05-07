@@ -15,10 +15,10 @@ import glob from 'glob';
 import zlib from 'zlib';
 import ora from 'ora';
 
-import { waitForDeployed, invalidateDist } from './invalidation';
 import { PutObjectRequest } from 'aws-sdk/clients/s3';
-import { prunePreviousVersions } from './prune';
 import confirmPrompt from '../../confirm-prompt';
+import { prunePreviousVersions } from './prune';
+import { invalidateDist } from './invalidation';
 import stageSelect from '../../stage-select';
 import { AppDeployConfig } from './types';
 import { getNewVersion } from './utils';
@@ -207,24 +207,14 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   spinner.succeed('CloudFront distribution updated.');
 
   if (await confirmPrompt('Invalidate the distribution?')) {
-    spinner.start('Waiting for Distribution to be ready (this may take several minutes)...');
+    spinner.info('Requesting invalidation...');
 
-    if (await waitForDeployed(distId)) {
-      spinner.info('Requesting invalidation...');
+    await invalidateDist(distId);
 
-      spinner.start('Waiting for Distribution to be ready (this may take several minutes)...');
+    spinner.succeed('Invalidation requested!');
 
-      await invalidateDist(distId);
-
-      spinner.info('Invalidation in progress...');
-
-      await waitForDeployed(distId);
-
-      spinner.succeed('Invalidation complete!');
-
-      if (await confirmPrompt('Prune old deployed versions?')) {
-        await prunePreviousVersions(bucket, version);
-      }
+    if (await confirmPrompt('Prune old deployed versions?')) {
+      await prunePreviousVersions(bucket, version);
     }
   }
 }
