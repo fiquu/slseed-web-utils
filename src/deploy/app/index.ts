@@ -115,6 +115,7 @@ function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpl
 
     const params: PutObjectRequest = {
       ContentType: mime.contentType(extname(file)) || undefined,
+      CacheControl: 'max-age=86400',
       Bucket,
       Key
     };
