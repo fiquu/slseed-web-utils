@@ -52,7 +52,8 @@
     "rcfile": "^1.0.3",
     "url-slug": "^2.3.1",
     "username": "^5.1.0",
-    "yargs": "^15.3.1"
+    "yargs": "^15.3.1",
+    "zlib": "^1.0.5"
   },
   "peerDependencies": {
     "aws-sdk": "^2.630.0",
@@ -67,7 +68,7 @@
     "@types/inquirer": "^6.5.0",
     "@types/mocha": "^7.0.2",
     "@types/mongoose": "^5.7.12",
-    "@types/node": "^13.13.1",
+    "@types/node": "^13.13.5",
     "@types/yargs": "^15.0.4",
     "@typescript-eslint/eslint-plugin": "^2.29.0",
     "@typescript-eslint/parser": "^2.29.0",

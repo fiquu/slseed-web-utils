@@ -1,10 +1,10 @@
 /* eslint-disable max-lines */
 
-import { resolve, join, extname, posix } from 'path';
+import { resolve, join, extname, posix, basename } from 'path';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
-import { createReadStream } from 'fs';
+import { createReadStream, readFileSync } from 'fs';
 import { format } from 'util';
 import mime from 'mime-types';
 import dotenv from 'dotenv';
@@ -12,14 +12,21 @@ import rcfile from 'rcfile';
 import AWS from 'aws-sdk';
 import chalk from 'chalk';
 import glob from 'glob';
+import zlib from 'zlib';
 import ora from 'ora';
 
 import { waitForDeployed, invalidateDist } from './invalidation';
+import { PutObjectRequest } from 'aws-sdk/clients/s3';
 import { prunePreviousVersions } from './prune';
 import confirmPrompt from '../../confirm-prompt';
 import stageSelect from '../../stage-select';
 import { AppDeployConfig } from './types';
 import { getNewVersion } from './utils';
+
+const specFiles = {
+  gzip: ['.js', '.css', '.json', '.ico', '.map', '.xml', '.txt', '.svg', '.eot', '.ttf', '.woff', '.woff2'],
+  pwa: ['index.html', 'service-worker.js', 'manifest.json'],
+};
 
 const slseedrc = rcfile('slseed');
 const spinner = ora();
@@ -106,12 +113,22 @@ function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpl
 
     spinner.info(`[${chalk.cyan(++index)}] ${chalk.bold(`"/${Key}"`)}...`);
 
-    const params = {
-      ContentType: mime.contentType(extname(file)) || undefined,
-      Body: createReadStream(file),
+    const params: PutObjectRequest = {
       Bucket,
       Key
     };
+
+    if (specFiles.pwa.includes(basename(filename))) {
+      params.CacheControl = 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+    }
+
+    if (specFiles.gzip.includes(extname(filename))) {
+      params.Body = zlib.gzipSync(readFileSync(file), { level: 9 });
+      params.ContentEncoding = 'gzip';
+    } else {
+      params.ContentType = mime.contentType(extname(file)) || undefined;
+      params.Body = createReadStream(file);
+    }
 
     return s3.upload(params).promise().then(data => {
       spinner.start(format(infoText, ++uploaded));
@@ -253,7 +270,7 @@ async function promptPrepTasks(): Promise<string> {
   }
 
   try {
-    const config: AppDeployConfig = await require(join(slseedrc.configs, 'deploy'));
+    const config: AppDeployConfig = await import(join(slseedrc.configs, 'deploy'));
 
     spinner.info(`Deploying for [${process.env.NODE_ENV}]...`);
 
