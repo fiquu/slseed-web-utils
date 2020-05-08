@@ -1,10 +1,10 @@
 /* eslint-disable max-lines */
 
 import { resolve, join, extname, posix, basename } from 'path';
+import { createReadStream, readFileSync } from 'fs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
-import { createReadStream, readFileSync } from 'fs';
 import { format } from 'util';
 import mime from 'mime-types';
 import dotenv from 'dotenv';
