@@ -40,6 +40,28 @@ async function resolveParam(ssm, name): Promise<SSMParamSet> {
   }
 }
 
+/**
+ * @param {string} paramName The parameter name to resolve.
+ *
+ * @returns {Promise<string[]>} The values to append to the env.
+ */
+function getParamPromise(paramName) {
+  const withPrefix = slseedrc.type === 'app' && !paramName.startsWith('!');
+  const name = paramName.replace(/^!/, '');
+  const ssm = new AWS.SSM();
+
+  const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
+    const prefix = withPrefix ? 'VUE_APP_' : '';
+
+    return [
+      `# SSM:/${Parameter.Name}`,
+      `${prefix}${envVar}=${Parameter.Value}`
+    ];
+  });
+
+  return promise;
+}
+
 console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
 (async (): Promise<void> => {
@@ -50,10 +72,10 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     const { NODE_ENV } = process.env;
 
-    const fileName = `.env.${NODE_ENV}${slseedrc.type === 'app' ? '.local' : ''}`;
+    const isApp = slseedrc.type === 'app';
+    const fileName = `.env.${NODE_ENV}${isApp ? '.local' : ''}`;
     const logLevels: string[] = await require(join(slseedrc.configs, 'log-levels'));
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm-env'));
-    const ssm = new AWS.SSM();
 
     const env = [
       `# Env file for [${NODE_ENV}] stage.\n`,
@@ -63,21 +85,16 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
       `LOG_LEVEL=${logLevels[String(NODE_ENV)]}`
     ];
 
-    await Promise.all(ssmEnv.map(paramName => {
-      const withPrefix = slseedrc.type === 'app' && !paramName.startsWith('!');
-      const name = paramName.replace(/^!/, '');
+    if (isApp) {
+      env.push(
+        '# Vue app environment (NODE_ENV may differ)',
+        `VUE_APP_ENV=${NODE_ENV}`
+      );
+    }
 
-      const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
-        const prefix = withPrefix ? 'VUE_APP_' : '';
-
-        env.push(
-          `# SSM:/${Parameter.Name}`,
-          `${prefix}${envVar}=${Parameter.Value}`
-        );
-      });
-
-      return promise;
-    }));
+    await Promise.all(ssmEnv.map(paramName =>
+      getParamPromise(paramName).then(values => env.push(...values))
+    ));
 
     spinner.succeed('SSM params resolved.');
 
