@@ -54,8 +54,7 @@ function getParamPromise(paramName) {
     const prefix = withPrefix ? 'VUE_APP_' : '';
 
     return [
-      `# SSM:/${Parameter.Name}`,
-      `${prefix}${envVar}=${Parameter.Value}`
+      `# SSM:${Parameter.Name}\n${prefix}${envVar}=${Parameter.Value}`
     ];
   });
 
@@ -79,16 +78,13 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     const env = [
       `# Env file for [${NODE_ENV}] stage.\n`,
-      '# Selected env',
-      `NODE_ENV=${NODE_ENV}`,
-      '# Log level',
-      `LOG_LEVEL=${logLevels[String(NODE_ENV)]}`
+      `# Selected Node env\nNODE_ENV=${NODE_ENV}`,
+      `# Log level\nLOG_LEVEL=${logLevels[String(NODE_ENV)]}`
     ];
 
     if (isApp) {
       env.push(
-        '# Vue app environment (NODE_ENV may differ)',
-        `VUE_APP_ENV=${NODE_ENV}`
+        `# Vue app environment (NODE_ENV may differ)\nVUE_APP_ENV=${NODE_ENV}`
       );
     }
 
@@ -98,7 +94,7 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     spinner.succeed('SSM params resolved.');
 
-    writeFileSync(fileName, env.join('\n'), 'utf8');
+    writeFileSync(fileName, env.sort().join('\n'), 'utf8');
 
     spinner.succeed(`File ${chalk.dim(fileName)} has been saved.`);
   } catch (err) {
