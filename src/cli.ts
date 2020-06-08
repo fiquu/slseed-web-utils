@@ -25,7 +25,7 @@ tasks.set('prune', join('deploy', 'prune.js'));
  *
  * @returns {Promise<any>} A promise to the task.
  */
-function runTask(task): Promise<any> {
+function runTask(task) {
   return import(join(__dirname, tasks.get(task)));
 }
 
@@ -34,7 +34,7 @@ function runTask(task): Promise<any> {
  *
  * @returns {Promise<void>} A promise to the imported task.
  */
-function processArgv(): Promise<any> {
+function processArgv() {
   if (!tasks.has(argv.do)) {
     throw new Error('The task you requested does not exists!');
   }
@@ -47,21 +47,17 @@ function processArgv(): Promise<any> {
  *
  * @returns {Promise<any>} A promise to the selected task.
  */
-async function processPrompt(): Promise<any> {
-  const choices = [
-    {
-      name: 'Deploy this application',
-      value: 'deploy'
-    },
-    {
-      name: 'Update or create a .env file',
-      value: 'setup-env'
-    },
-    {
-      name: 'Setup the CloudFormation stack',
-      value: 'setup-stack'
-    }
-  ];
+async function processPrompt() {
+  const choices = [{
+    name: 'Deploy this application',
+    value: 'deploy'
+  }, {
+    name: 'Update or create a .env file',
+    value: 'setup-env'
+  }, {
+    name: 'Setup the CloudFormation stack',
+    value: 'setup-stack'
+  }];
 
   if (slseedrc.type === 'app') {
     choices.push({
