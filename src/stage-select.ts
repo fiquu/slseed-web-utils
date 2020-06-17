@@ -5,11 +5,16 @@ import { join } from 'path';
 import rcfile from 'rcfile';
 
 interface Arguments {
+  awsUseProfiles?: boolean;
   profile?: string;
 }
 
 const slseedrc = rcfile('slseed');
 const argv: Arguments = yargs.options({
+  awsUseProfiles: {
+    default: true,
+    type: 'boolean'
+  },
   profile: {
     default: null,
     type: 'string'
@@ -37,20 +42,25 @@ export default async (env = true): Promise<string> => {
   }
 
   if (env) {
-    process.env.AWS_PROFILE = profiles[String(profile)];
+    if (argv.awsUseProfiles) {
+      process.env.AWS_PROFILE = profiles[String(profile)];
+    }
+
     process.env.NODE_ENV = String(profile);
   }
 
-  const credentials: SharedIniFileCredentials = new SharedIniFileCredentials({
-    profile: profiles[String(profile)]
-  });
+  if (argv.awsUseProfiles) {
+    const credentials: SharedIniFileCredentials = new SharedIniFileCredentials({
+      profile: profiles[String(profile)]
+    });
 
-  // Update AWS config
-  AWS.config.update({
-    apiVersions,
-    credentials,
-    region
-  });
+    // Update AWS config
+    AWS.config.update({
+      apiVersions,
+      credentials,
+      region
+    });
+  }
 
   return String(profile);
 };
