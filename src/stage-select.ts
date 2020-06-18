@@ -5,17 +5,17 @@ import { join } from 'path';
 import rcfile from 'rcfile';
 
 interface Arguments {
-  awsUseProfiles?: boolean;
-  profile?: string;
+  useAwsProfiles?: boolean;
+  stage?: string;
 }
 
 const slseedrc = rcfile('slseed');
-const argv: Arguments = yargs.options({
-  awsUseProfiles: {
+const { stage, useAwsProfiles }: Arguments = yargs.options({
+  useAwsProfiles: {
     default: true,
     type: 'boolean'
   },
-  profile: {
+  stage: {
     default: null,
     type: 'string'
   }
@@ -30,7 +30,7 @@ const argv: Arguments = yargs.options({
  */
 export default async (env = true): Promise<string> => {
   const { region, profiles, apiVersions } = await require(join(slseedrc.configs, 'aws'));
-  const { profile } = argv.profile ? { profile: argv.profile } : await prompt({
+  const { profile } = stage ? { profile: stage } : await prompt({
     name: 'profile',
     type: 'list',
     message: 'Which stage do you want to affect?',
@@ -42,14 +42,14 @@ export default async (env = true): Promise<string> => {
   }
 
   if (env) {
-    if (argv.awsUseProfiles) {
+    if (useAwsProfiles) {
       process.env.AWS_PROFILE = profiles[String(profile)];
     }
 
     process.env.NODE_ENV = String(profile);
   }
 
-  if (argv.awsUseProfiles) {
+  if (useAwsProfiles) {
     const credentials: SharedIniFileCredentials = new SharedIniFileCredentials({
       profile: profiles[String(profile)]
     });
