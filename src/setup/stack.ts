@@ -103,7 +103,7 @@ function getStackInput(StackName: string, isUpdate: boolean, template: any, valu
 
   return {
     StackName,
-    Capabilities: ['CAPABILITY_NAMED_IAM'],
+    Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
     TemplateBody: JSON.stringify(_template),
     Parameters: Object.keys(values).map(ParameterKey => {
       const param: AWS.CloudFormation.Parameter = { ParameterKey };

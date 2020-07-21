@@ -154,7 +154,7 @@ type CloudfrontUpdateResponse = Promise<PromiseResult<AWS.CloudFront.UpdateDistr
  *
  * @returns {Promise} A promise to the request.
  */
-async function updateDistConfig(distId, bucket, version): CloudfrontUpdateResponse {
+async function updateDistConfig(distId: string, bucket: string, version: string): CloudfrontUpdateResponse {
   const cloudfront = new AWS.CloudFront();
 
   const distConfig = await cloudfront.getDistributionConfig({ Id: distId }).promise();
@@ -167,14 +167,12 @@ async function updateDistConfig(distId, bucket, version): CloudfrontUpdateRespon
       DefaultRootObject: 'index.html',
       Origins: {
         Quantity: 1,
-        Items: [
-          {
-            ...distConfig.DistributionConfig.Origins.Items.pop(), // Copy last origin's config
-            DomainName: `${bucket}.s3.amazonaws.com`,
-            Id: `S3-${bucket}/v${version}`,
-            OriginPath: `/v${version}`
-          }
-        ]
+        Items: [{
+          ...distConfig.DistributionConfig.Origins.Items.pop(), // Copy last origin's config
+          DomainName: `${bucket}.s3.amazonaws.com`,
+          Id: `S3-${bucket}/v${version}`,
+          OriginPath: `/v${version}`
+        }]
       },
       DefaultCacheBehavior: {
         ...distConfig.DistributionConfig.DefaultCacheBehavior,
@@ -182,6 +180,21 @@ async function updateDistConfig(distId, bucket, version): CloudfrontUpdateRespon
       }
     }
   }).promise();
+}
+
+/**
+ * @param {string} distId The distribution Id.
+ */
+async function showDistributionDomains(distId: string) {
+  const cloudfront = new AWS.CloudFront();
+
+  const { Distribution } = await cloudfront.getDistribution({ Id: distId }).promise();
+
+  spinner.info(`Distribution domain: ${Distribution.DomainName}`);
+
+  if (Distribution.DistributionConfig.Aliases?.Items) {
+    spinner.info(`Distribution aliases: ${Distribution.DistributionConfig.Aliases.Items.join(', ')}`);
+  }
 }
 
 /**
@@ -218,6 +231,8 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
       await prunePreviousVersions(bucket, version);
     }
   }
+
+  await showDistributionDomains(distId);
 }
 
 /**

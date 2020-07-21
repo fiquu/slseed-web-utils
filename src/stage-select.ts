@@ -1,8 +1,8 @@
-import AWS, { SharedIniFileCredentials } from 'aws-sdk';
 import { prompt } from 'inquirer';
-import yargs from 'yargs';
 import { join } from 'path';
 import rcfile from 'rcfile';
+import AWS from 'aws-sdk';
+import yargs from 'yargs';
 
 interface Arguments {
   useAwsProfiles?: boolean;
@@ -24,11 +24,10 @@ const { stage, useAwsProfiles }: Arguments = yargs.options({
 /**
  * Selects and sets proper stage and profiles.
  *
- * @param {boolean} env Whether to set `process.env` vars also.
- *
  * @returns {Promise<string>} A promise to the selected profile name.
  */
-export default async (env = true): Promise<string> => {
+export default async (): Promise<string> => {
+  // eslint-disable-next-line security/detect-non-literal-require
   const { region, profiles, apiVersions } = await require(join(slseedrc.configs, 'aws'));
   const { profile } = stage ? { profile: stage } : await prompt({
     name: 'profile',
@@ -41,23 +40,17 @@ export default async (env = true): Promise<string> => {
     throw new Error('Invalid profile');
   }
 
-  if (env) {
-    if (useAwsProfiles) {
-      process.env.AWS_PROFILE = profiles[String(profile)];
-    }
-
-    process.env.NODE_ENV = String(profile);
-  }
+  process.env.NODE_ENV = String(profile);
 
   if (useAwsProfiles) {
-    const credentials: SharedIniFileCredentials = new SharedIniFileCredentials({
-      profile: profiles[String(profile)]
-    });
+    process.env.AWS_PROFILE = profiles[String(profile)];
+    process.env.AWS_DEFAULT_REGION = region;
 
-    // Update AWS config
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    delete process.env.AWS_ACCESS_KEY_ID;
+
     AWS.config.update({
       apiVersions,
-      credentials,
       region
     });
   }
