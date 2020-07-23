@@ -1,4 +1,4 @@
-import CloudFormation, { CreateStackInput, UpdateStackInput, TemplateBody } from 'aws-sdk/clients/cloudformation';
+import CloudFormation, { CreateStackInput, UpdateStackInput } from 'aws-sdk/clients/cloudformation';
 import { prompt, InputQuestion, Answers } from 'inquirer';
 import slug from 'url-slug';
 import { join } from 'path';
@@ -14,6 +14,26 @@ import stageSelect from '../stage-select';
 const slseedrc = rcfile('slseed');
 const spinner = ora();
 
+interface TemplateBodyObject {
+  AWSTemplateFormatVersion: string;
+  Description: string;
+  Resources: Record<string, string>;
+  Outputs: Record<string, string>;
+  Parameters: {
+    Description: string;
+    AllowedValues: string[];
+    Default: string;
+    Type: string;
+  };
+}
+
+interface GetStackInputParams {
+  template: TemplateBodyObject;
+  StackName: string;
+  isUpdate: boolean;
+  values: Answers;
+}
+
 /**
  * Logs script headers.
  *
@@ -22,11 +42,9 @@ const spinner = ora();
 function logHeaders(StackName: CloudFormation.StackName): void {
   const { NODE_ENV, AWS_PROFILE } = process.env;
 
-  console.log('');
-  console.log(`${chalk.bold('Stack Name:')}  ${StackName}`);
+  console.log(`\n${chalk.bold('Stack Name:')}  ${StackName}`);
   console.log(`${chalk.bold('Node Env:')}    ${NODE_ENV}`);
-  console.log(`${chalk.bold('AWS Profile:')} ${AWS_PROFILE}`);
-  console.log('');
+  console.log(`${chalk.bold('AWS Profile:')} ${AWS_PROFILE}\n`);
 }
 
 /**
@@ -72,9 +90,8 @@ function getParamsQuestions(isUpdate: boolean, values: InputQuestion[]): InputQu
       ...value,
       default: isUpdate ? undefined : value.default,
       message: `${value.message}${isUpdate ? previous : ''}:`,
-      validate: (val: string): string | boolean | Promise<string | boolean> => {
-        return (isUpdate && is.empty(val)) || value.validate(val);
-      }
+      validate: (val: string): string | boolean | Promise<string | boolean> =>
+        (isUpdate && is.empty(val)) || value.validate(val)
     };
 
     return _value;
@@ -84,18 +101,16 @@ function getParamsQuestions(isUpdate: boolean, values: InputQuestion[]): InputQu
 /**
  * Generates the CloudFormation template paramters.
  *
- * @param {string} StackName The CloudFormation stack name.
- * @param {boolean} isUpdate Whether it is a stack update.
- * @param {object} template The current template.
- * @param {object} values The template values.
+ * @param {object} params The params to use.
  *
  * @returns {object} The CloudFormation template.
  */
-function getStackInput(StackName: string, isUpdate: boolean, template: any, values: Answers): CreateStackInput {
-  const _template = { ...template };
+function getStackInput(params: GetStackInputParams): CreateStackInput {
+  const { StackName, isUpdate, values } = params;
+  const template = { ...params.template };
 
   for (const key of Object.keys(values)) {
-    _template.Parameters[String(key)] = {
+    template.Parameters[String(key)] = {
       Description: values[String(key)].message,
       Type: 'String'
     };
@@ -104,7 +119,7 @@ function getStackInput(StackName: string, isUpdate: boolean, template: any, valu
   return {
     StackName,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-    TemplateBody: JSON.stringify(_template),
+    TemplateBody: JSON.stringify(template),
     Parameters: Object.keys(values).map(ParameterKey => {
       const param: AWS.CloudFormation.Parameter = { ParameterKey };
 
@@ -123,36 +138,14 @@ function getStackInput(StackName: string, isUpdate: boolean, template: any, valu
  * Describes a stack.
  *
  * @param {string} StackName The stack name.
- * @param {boolean} isUpdate Whether it is a stack update.
+ *
+ * @returns {object} The stack object.
  */
-async function describeStacks(StackName: CloudFormation.StackName, isUpdate: boolean): Promise<void> {
+async function describeStack(StackName: CloudFormation.StackName): Promise<CloudFormation.Stack> {
   const cfm = new CloudFormation();
-
   const { Stacks } = await cfm.describeStacks({ StackName }).promise();
-  const { StackStatus, Outputs } = Stacks[0];
 
-  switch (StackStatus) {
-    case 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
-    case 'CREATE_IN_PROGRESS':
-    case 'UPDATE_IN_PROGRESS':
-      setTimeout(() => describeStacks(StackName, isUpdate), 5000);
-      break;
-
-    case 'CREATE_COMPLETE':
-    case 'UPDATE_COMPLETE':
-      spinner.succeed(`Stack successfully ${isUpdate ? 'updated' : 'created'}!`);
-      console.info('Outputs:', Outputs);
-      break;
-
-    default:
-      const message = [
-        `Stack ${isUpdate ? 'update' : 'creation'} failed: "${StackStatus}".`,
-        'Please check the AWS CloudFormation console for more information',
-        '(https://console.aws.amazon.com/cloudformation/home).'
-      ];
-
-      spinner.fail(message.join(' '));
-  }
+  return Stacks[0];
 }
 
 /**
@@ -160,7 +153,7 @@ async function describeStacks(StackName: CloudFormation.StackName, isUpdate: boo
  *
  * @param {string} TemplateBody The CloudFormation template body JSON.
  */
-async function validateTemplate(TemplateBody: TemplateBody): Promise<void> {
+async function validateTemplate(TemplateBody: CloudFormation.TemplateBody): Promise<void> {
   const cfm = new CloudFormation();
 
   spinner.start('Validating CloudFormation Stack Template...');
@@ -195,8 +188,10 @@ async function createOrUpdateStack(isUpdate: boolean, params: CreateStackInput |
  *
  * @param {boolean} isUpdate Whether it is a stack update.
  */
-async function getStackConfig(isUpdate: boolean): Promise<any> {
-  const template: TemplateBody = await require(join(slseedrc.configs, 'stack', 'template'));
+async function getStackConfig(isUpdate: boolean): Promise<{ template: TemplateBodyObject; answers: Answers }> {
+  // eslint-disable-next-line security/detect-non-literal-require
+  const template: TemplateBodyObject = await require(join(slseedrc.configs, 'stack', 'template'));
+  // eslint-disable-next-line security/detect-non-literal-require
   const values: InputQuestion[] = await require(join(slseedrc.configs, 'stack', 'values'));
   const questions: InputQuestion[] = getParamsQuestions(isUpdate, values);
   const answers: Answers = await prompt(questions);
@@ -222,23 +217,39 @@ async function confirmUpdate(): Promise<boolean> {
 }
 
 /**
- * Checks for the stack status.
- *
- * @param {string} StackName The stack name.
- * @param {boolean} isUpdate Whether it's an update.
+ * @param {string} StackName The stack name to check for.
+ * @param {boolean} isUpdate Whether it's an update request.
  */
-async function doStatusCheck(StackName, isUpdate): Promise<void> {
-  spinner.info('You can skip the check process if you wish by pressing [CTRL+C].');
-  spinner.info(`You should update your ".env.${process.env.NODE_ENV}" file after this.`);
+async function checkStackStatus(StackName: string, isUpdate: boolean) {
+  const { StackStatus, Outputs } = await describeStack(StackName);
 
-  spinner.start('Checking CloudFormation Stack status (this may take several minutes)...');
+  switch (StackStatus) {
+    case 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
+    case 'CREATE_IN_PROGRESS':
+    case 'UPDATE_IN_PROGRESS':
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait...
+      return checkStackStatus(StackName, isUpdate); // Loop
 
-  await describeStacks(StackName, isUpdate);
+    case 'CREATE_COMPLETE':
+    case 'UPDATE_COMPLETE':
+      spinner.succeed(`Stack successfully ${isUpdate ? 'updated' : 'created'}!`);
+      console.info('Outputs:', Outputs);
+      break;
+
+    default:
+      const message = [
+        `Stack ${isUpdate ? 'update' : 'creation'} failed: "${StackStatus}".`,
+        'Please check the AWS CloudFormation console for more information',
+        '(https://console.aws.amazon.com/cloudformation/home).'
+      ];
+
+      spinner.fail(message.join(' '));
+  }
 }
 
-console.log(`\n${chalk.cyan.bold('Let\'s setup the CloudFormation stack...')}\n`);
-
 (async (): Promise<void> => {
+  console.log(`\n${chalk.cyan.bold('Let\'s setup the CloudFormation stack...')}\n`);
+
   try {
     await stageSelect();
 
@@ -264,11 +275,20 @@ console.log(`\n${chalk.cyan.bold('Let\'s setup the CloudFormation stack...')}\n`
       return;
     }
 
-    const params = getStackInput(StackName, isUpdate, template, answers);
+    const params = getStackInput({ StackName, isUpdate, template, values: answers });
 
     await validateTemplate(params.TemplateBody);
     await createOrUpdateStack(isUpdate, params);
-    await doStatusCheck(StackName, isUpdate);
+
+    spinner.info('You can skip the check process if you wish by pressing [CTRL+C].');
+    spinner.info(`You should update your ".env.${process.env.NODE_ENV}" file after this.`);
+    spinner.start('Checking CloudFormation Stack status (this may take several minutes)...');
+
+    await checkStackStatus(StackName, isUpdate);
+
+    if (await confirmPrompt('Update env file?')) {
+      await import('./env');
+    }
   } catch (err) {
     spinner.fail(err.message);
   }

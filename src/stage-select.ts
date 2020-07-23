@@ -9,6 +9,7 @@ interface Arguments {
   stage?: string;
 }
 
+let profileSet = false;
 const slseedrc = rcfile('slseed');
 const { stage, useAwsProfiles }: Arguments = yargs.options({
   useAwsProfiles: {
@@ -27,6 +28,10 @@ const { stage, useAwsProfiles }: Arguments = yargs.options({
  * @returns {Promise<string>} A promise to the selected profile name.
  */
 export default async (): Promise<string> => {
+  if (profileSet) {
+    return process.env.NODE_ENV;
+  }
+
   // eslint-disable-next-line security/detect-non-literal-require
   const { region, profiles, apiVersions } = await require(join(slseedrc.configs, 'aws'));
   const { profile } = stage ? { profile: stage } : await prompt({
@@ -54,6 +59,8 @@ export default async (): Promise<string> => {
       region
     });
   }
+
+  profileSet = true;
 
   return String(profile);
 };
