@@ -1,7 +1,7 @@
+import AWS, { SharedIniFileCredentials } from 'aws-sdk';
 import { prompt } from 'inquirer';
 import { join } from 'path';
 import rcfile from 'rcfile';
-import AWS from 'aws-sdk';
 import yargs from 'yargs';
 
 interface Arguments {
@@ -50,12 +50,16 @@ export default async (): Promise<string> => {
   if (useAwsProfiles) {
     process.env.AWS_PROFILE = profiles[String(profile)];
     process.env.AWS_DEFAULT_REGION = region;
+    process.env.AWS_SECRET_ACCESS_KEY = '';
+    process.env.AWS_ACCESS_KEY_ID = '';
 
-    delete process.env.AWS_SECRET_ACCESS_KEY;
-    delete process.env.AWS_ACCESS_KEY_ID;
+    const credentials = new SharedIniFileCredentials({
+      profile: profiles[String(profile)]
+    });
 
     AWS.config.update({
       apiVersions,
+      credentials,
       region
     });
   }
