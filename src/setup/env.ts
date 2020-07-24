@@ -53,9 +53,7 @@ function getParamPromise(paramName) {
   const promise = resolveParam(ssm, name).then(({ envVar, Parameter }) => {
     const prefix = withPrefix ? 'VUE_APP_' : '';
 
-    return [
-      `# SSM:${Parameter.Name}\n${prefix}${envVar}=${Parameter.Value}`
-    ];
+    return [`# SSM:${Parameter.Name}\n${prefix}${envVar}=${Parameter.Value}`];
   });
 
   return promise;
@@ -83,9 +81,7 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
     ];
 
     if (isApp) {
-      env.push(
-        `# Vue app environment (NODE_ENV may differ)\nVUE_APP_ENV=${NODE_ENV}`
-      );
+      env.push(`# Vue app environment (NODE_ENV may differ)\nVUE_APP_ENV=${NODE_ENV}`);
     }
 
     await Promise.all(ssmEnv.map(paramName =>
@@ -99,5 +95,6 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
     spinner.succeed(`File ${chalk.dim(fileName)} has been saved.`);
   } catch (err) {
     spinner.fail(err.message);
+    process.exitCode = 1;
   }
 })();
