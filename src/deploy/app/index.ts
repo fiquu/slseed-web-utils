@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 
 import { resolve, join, extname, posix, basename } from 'path';
+import { PutObjectRequest } from 'aws-sdk/clients/s3';
 import { createReadStream, readFileSync } from 'fs';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { prompt, ListQuestion } from 'inquirer';
@@ -15,12 +16,12 @@ import glob from 'glob';
 import zlib from 'zlib';
 import ora from 'ora';
 
-import { PutObjectRequest } from 'aws-sdk/clients/s3';
 import confirmPrompt from '../../confirm-prompt';
 import { prunePreviousVersions } from './prune';
 import { invalidateDist } from './invalidation';
 import stageSelect from '../../stage-select';
 import { AppDeployConfig } from './types';
+import yargs, { Arguments } from 'yargs';
 import { getNewVersion } from './utils';
 
 const specFiles = {
@@ -30,6 +31,12 @@ const specFiles = {
 
 const slseedrc = rcfile('slseed');
 const spinner = ora();
+const { autoDeploy }: Arguments = yargs.options({
+  autoDeploy: {
+    default: false,
+    type: 'boolean'
+  }
+}).argv;
 
 /**
  * Bumps the patch version.
@@ -187,13 +194,14 @@ async function updateDistConfig(distId: string, bucket: string, version: string)
  */
 async function showDistributionDomains(distId: string) {
   const cloudfront = new AWS.CloudFront();
-
   const { Distribution } = await cloudfront.getDistribution({ Id: distId }).promise();
 
-  spinner.info(`Distribution domain: ${Distribution.DomainName}`);
+  spinner.info(`${chalk.bold('Distribution URL')}:`);
+  console.log(`\t- https://${Distribution.DomainName}`);
 
-  if (Distribution.DistributionConfig.Aliases?.Items) {
-    spinner.info(`Distribution aliases: ${Distribution.DistributionConfig.Aliases.Items.join(', ')}`);
+  if (Distribution.DistributionConfig?.Aliases?.Items?.length > 0) {
+    spinner.info(`${chalk.bold('Distribution aliases')}:`);
+    Distribution.DistributionConfig.Aliases.Items.forEach(alias => console.log(`\t- https://${alias}`));
   }
 }
 
@@ -220,14 +228,14 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 
   spinner.succeed('CloudFront distribution updated.');
 
-  if (await confirmPrompt('Invalidate the distribution?')) {
+  if (autoDeploy || await confirmPrompt('Invalidate the distribution?')) {
     spinner.info('Requesting invalidation...');
 
     await invalidateDist(distId);
 
     spinner.succeed('Invalidation requested!');
 
-    if (await confirmPrompt('Prune old deployed versions?')) {
+    if (autoDeploy || await confirmPrompt('Prune old deployed versions?')) {
       await prunePreviousVersions(bucket, version);
     }
   }
@@ -237,26 +245,24 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 
 /**
  * Prompts for preparation tasks.
+ *
+ * @returns {string} The preparation task.
  */
 async function promptPrepTasks(): Promise<string> {
   const question: ListQuestion = {
     name: 'tasks',
     type: 'list',
     message: 'Select preparation tasks:',
-    choices: [
-      {
-        name: 'Bump patch version and rebuild dists.',
-        value: 'version-rebuild'
-      },
-      {
-        name: 'Rebuild dists only.',
-        value: 'rebuild'
-      },
-      {
-        name: 'Nothing',
-        value: 'nothing'
-      }
-    ]
+    choices: [{
+      name: 'Bump patch version and rebuild dists.',
+      value: 'version-rebuild'
+    }, {
+      name: 'Rebuild dists only.',
+      value: 'rebuild'
+    }, {
+      name: 'Nothing',
+      value: 'nothing'
+    }]
   };
 
   const { tasks } = await prompt(question);
@@ -280,9 +286,9 @@ async function promptPrepTasks(): Promise<string> {
 
     spinner.info(`Deploying for [${process.env.NODE_ENV}]...`);
 
-    const tasks = await promptPrepTasks();
-
     try {
+      const tasks = autoDeploy ? 'rebuild' : await promptPrepTasks();
+
       if (tasks === 'version-rebuild') {
         bumpPatchVersion();
         rebuildDists();
@@ -297,8 +303,8 @@ async function promptPrepTasks(): Promise<string> {
     const bucket = process.env[String(config.bucket)];
     const deployed = await checkIfVersionDeployed(bucket, version);
 
-    if (deployed && !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))) {
-      spinner.fail('Deploy aborted.');
+    if (deployed && (autoDeploy || !(await confirmPrompt('This version has already been deployed. Proceed anyway?')))) {
+      spinner.fail('Version already deployed. Canceled.');
       return;
     }
 
