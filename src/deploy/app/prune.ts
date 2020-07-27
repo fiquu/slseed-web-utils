@@ -1,5 +1,6 @@
 import yargs, { Arguments } from 'yargs';
 import { prompt } from 'inquirer';
+import chalk from 'chalk';
 import AWS from 'aws-sdk';
 import ora from 'ora';
 
@@ -64,6 +65,8 @@ export async function deleteVersionFromBucket(Bucket: string, version: string): 
  * @returns {string[]} The selected versions to prune.
  */
 async function promptVersions(current: string, versions: string[]): Promise<string[]> {
+  spinner.stop();
+
   const { selected } = await prompt({
     name: 'selected',
     type: 'checkbox',
@@ -105,14 +108,14 @@ export async function prunePreviousVersions(Bucket: string, current: string): Pr
 
   const versions = await listVersionsInBucket(Bucket);
 
-  if (versions.length < 3) {
+  spinner.start(`${chalk.bold('Deployed versions')}: ${versions.join(', ')}`);
+
+  if (versions.length < 4) {
     spinner.warn('There must be at least 4 deployed versions to prune the last.');
     return;
   }
 
-  spinner.stop();
-
-  // Keep current and one version older
+  // Keep current and two older versions by default
   let selected = versions.filter((value, i) => value !== current && i > 2);
 
   if (!autoDeploy) {

@@ -196,12 +196,11 @@ async function showDistributionDomains(distId: string) {
   const cloudfront = new AWS.CloudFront();
   const { Distribution } = await cloudfront.getDistribution({ Id: distId }).promise();
 
-  spinner.info(`${chalk.bold('Distribution URL')}:`);
-  console.log(`\t- https://${Distribution.DomainName}`);
+  spinner.info(`${chalk.bold('Distribution URL')}: https://${Distribution.DomainName}`);
 
   if (Distribution.DistributionConfig?.Aliases?.Items?.length > 0) {
     spinner.info(`${chalk.bold('Distribution aliases')}:`);
-    Distribution.DistributionConfig.Aliases.Items.forEach(alias => console.log(`\t- https://${alias}`));
+    Distribution.DistributionConfig.Aliases.Items.forEach(alias => console.log(`  - https://${alias}`));
   }
 }
 
@@ -219,7 +218,6 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
 
   spinner.prefixText = '';
   spinner.succeed('All files uploaded!');
-
   spinner.start('Updating CloudFront distribution...');
 
   const distId = process.env[String(config.distId)];
@@ -302,8 +300,11 @@ async function promptPrepTasks(): Promise<string> {
     const version = getNewVersion();
     const bucket = process.env[String(config.bucket)];
     const deployed = await checkIfVersionDeployed(bucket, version);
+    const shouldSkipDeploy = deployed && (
+      autoDeploy || !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))
+    );
 
-    if (deployed && (autoDeploy || !(await confirmPrompt('This version has already been deployed. Proceed anyway?')))) {
+    if (shouldSkipDeploy) {
       spinner.fail('Version already deployed. Canceled.');
       return;
     }
