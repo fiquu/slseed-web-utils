@@ -1,11 +1,13 @@
 /* eslint-disable max-lines */
 
+import type { PutObjectRequest } from 'aws-sdk/clients/s3';
+import type { PromiseResult } from 'aws-sdk/lib/request';
+import type { AppDeployConfig } from './types';
+
 import { resolve, join, extname, posix, basename } from 'path';
-import { PutObjectRequest } from 'aws-sdk/clients/s3';
 import { createReadStream, readFileSync } from 'fs';
-import { PromiseResult } from 'aws-sdk/lib/request';
-import { prompt, ListQuestion } from 'inquirer';
 import { spawnSync } from 'child_process';
+import yargs, { Arguments } from 'yargs';
 import { format } from 'util';
 import mime from 'mime-types';
 import dotenv from 'dotenv';
@@ -20,9 +22,8 @@ import confirmPrompt from '../../confirm-prompt';
 import { prunePreviousVersions } from './prune';
 import { invalidateDist } from './invalidation';
 import stageSelect from '../../stage-select';
-import { AppDeployConfig } from './types';
-import yargs, { Arguments } from 'yargs';
-import { getNewVersion } from './utils';
+
+type CloudfrontUpdateResponse = Promise<PromiseResult<AWS.CloudFront.UpdateDistributionResult, AWS.AWSError>>;
 
 const specFiles = {
   gzip: ['.js', '.css', '.json', '.ico', '.map', '.xml', '.txt', '.svg', '.eot', '.ttf', '.woff', '.woff2'],
@@ -39,19 +40,6 @@ const { autoDeploy }: Arguments = yargs.options({
 }).argv;
 
 /**
- * Bumps the patch version.
- */
-function bumpPatchVersion(): void {
-  const spawn = spawnSync('npm', ['version', 'patch'], {
-    stdio: 'inherit'
-  });
-
-  if (spawn.status !== 0) {
-    throw new Error();
-  }
-}
-
-/**
  * Starts the build task.
  */
 function rebuildDists(): void {
@@ -60,7 +48,7 @@ function rebuildDists(): void {
   });
 
   if (spawn.status !== 0) {
-    throw new Error();
+    throw spawn.error;
   }
 }
 
@@ -149,8 +137,6 @@ function uploadFiles(Bucket: string, version: string): Promise<AWS.S3.ManagedUpl
 
   return uploads;
 }
-
-type CloudfrontUpdateResponse = Promise<PromiseResult<AWS.CloudFront.UpdateDistributionResult, AWS.AWSError>>;
 
 /**
  * Updates the CloudFront distribution config.
@@ -241,73 +227,31 @@ async function deploy(config: AppDeployConfig, bucket: string, version: string):
   await showDistributionDomains(distId);
 }
 
-/**
- * Prompts for preparation tasks.
- *
- * @returns {string} The preparation task.
- */
-async function promptPrepTasks(): Promise<string> {
-  const question: ListQuestion = {
-    name: 'tasks',
-    type: 'list',
-    message: 'Select preparation tasks:',
-    choices: [{
-      name: 'Bump patch version and rebuild dists.',
-      value: 'version-rebuild'
-    }, {
-      name: 'Rebuild dists only.',
-      value: 'rebuild'
-    }, {
-      name: 'Nothing',
-      value: 'nothing'
-    }]
-  };
-
-  const { tasks } = await prompt(question);
-
-  return tasks;
-}
-
 (async (): Promise<void> => {
   await stageSelect();
 
-  const { error } = dotenv.config({
-    path: resolve(process.cwd(), `.env.${process.env.NODE_ENV}.local`)
-  });
-
-  if (error) {
-    throw error;
-  }
-
   try {
+    const { error } = dotenv.config({
+      path: resolve(process.cwd(), `.env.${process.env.NODE_ENV}.local`)
+    });
+
+    if (error) {
+      throw error;
+    }
+
     const config: AppDeployConfig = await import(join(slseedrc.configs, 'deploy'));
+    const bucket = process.env[String(config.bucket)];
 
     spinner.info(`Deploying for [${process.env.NODE_ENV}]...`);
 
-    try {
-      const tasks = autoDeploy ? 'rebuild' : await promptPrepTasks();
-
-      if (tasks === 'version-rebuild') {
-        bumpPatchVersion();
-        rebuildDists();
-      } else if (tasks === 'rebuild') {
-        rebuildDists();
-      }
-    } catch (err) {
-      throw new Error('Preparation task failed!');
-    }
-
-    const version = getNewVersion();
-    const bucket = process.env[String(config.bucket)];
+    const { version } = slseedrc.package;
     const deployed = await checkIfVersionDeployed(bucket, version);
-    const shouldSkipDeploy = deployed && (
-      autoDeploy || !(await confirmPrompt('This version has already been deployed. Proceed anyway?'))
-    );
 
-    if (shouldSkipDeploy) {
-      spinner.fail('Version already deployed. Canceled.');
-      return;
+    if (deployed) {
+      throw new Error('Version already deployed');
     }
+
+    rebuildDists();
 
     spinner.info('Starting deploy process...');
 
@@ -319,4 +263,3 @@ async function promptPrepTasks(): Promise<string> {
     process.exitCode = 1;
   }
 })();
-

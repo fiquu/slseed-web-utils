@@ -5,7 +5,6 @@ import chalk from 'chalk';
 
 import { prunePreviousVersions } from './app/prune';
 import { AppDeployConfig } from './app/types';
-import { getNewVersion } from './app/utils';
 import stageSelect from '../stage-select';
 
 console.log(`\n${chalk.cyan.bold('Let\'s prune previous deployed versions...')}\n`);
@@ -26,7 +25,7 @@ const slseedrc = rcfile('slseed');
   const file = join(slseedrc.configs, 'deploy');
   const config: AppDeployConfig = await require(file); // eslint-disable-line security/detect-non-literal-require
   const bucket = process.env[String(config.bucket)];
-  const version = getNewVersion();
+  const { version } = slseedrc.package;
 
   await prunePreviousVersions(bucket, version);
 })();
