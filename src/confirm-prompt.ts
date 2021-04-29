@@ -7,7 +7,7 @@ import { prompt, ConfirmQuestion } from 'inquirer';
  *
  * @returns {Promise<boolean>} A promise to the confirm answer.
  */
-export default async function confirmPrompt(message): Promise<boolean> {
+export default async (message: string): Promise<boolean> => {
   const question: ConfirmQuestion = {
     name: 'confirm',
     type: 'confirm',
@@ -18,4 +18,4 @@ export default async function confirmPrompt(message): Promise<boolean> {
   const { confirm } = await prompt(question);
 
   return confirm;
-}
+};

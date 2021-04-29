@@ -25,39 +25,43 @@ tasks.set('prune', join('deploy', 'prune.js'));
  *
  * @returns {Promise<any>} A promise to the task.
  */
-function runTask(task) {
+const runTask = task => {
   return import(join(__dirname, tasks.get(task)));
-}
+};
 
 /**
  * Tries to execute the task provided on the "do" option.
  *
  * @returns {Promise<void>} A promise to the imported task.
  */
-function processArgv() {
+const processArgv = () => {
   if (!tasks.has(argv.do)) {
     throw new Error('The task you requested does not exists!');
   }
 
   return runTask(argv.do);
-}
+};
 
 /**
  * Asks for the task to run.
  *
  * @returns {Promise<any>} A promise to the selected task.
  */
-async function processPrompt() {
-  const choices = [{
-    name: 'Deploy this application',
-    value: 'deploy'
-  }, {
-    name: 'Update or create a .env file',
-    value: 'setup-env'
-  }, {
-    name: 'Setup the CloudFormation stack',
-    value: 'setup-stack'
-  }];
+const processPrompt = async () => {
+  const choices = [
+    {
+      name: 'Deploy this application',
+      value: 'deploy'
+    },
+    {
+      name: 'Update or create a .env file',
+      value: 'setup-env'
+    },
+    {
+      name: 'Setup the CloudFormation stack',
+      value: 'setup-stack'
+    }
+  ];
 
   if (slseedrc.type === 'app') {
     choices.push({
@@ -74,7 +78,7 @@ async function processPrompt() {
   });
 
   return runTask(task);
-}
+};
 
 (async (): Promise<void> => {
   const greeting = greetingTime(new Date());
@@ -84,6 +88,7 @@ async function processPrompt() {
 
   if (argv.do) {
     await processArgv();
+
     return;
   }
 

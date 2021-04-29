@@ -23,7 +23,7 @@ interface SSMParamSet {
  *
  * @returns {object} A promise to the parameter env var name and Parameter data.
  */
-async function resolveParam(ssm, name): Promise<SSMParamSet> {
+const resolveParam = async (ssm, name): Promise<SSMParamSet> => {
   const params = {
     Name: posix.join('/', slseedrc.stack, process.env.NODE_ENV, name),
     WithDecryption: true
@@ -36,16 +36,17 @@ async function resolveParam(ssm, name): Promise<SSMParamSet> {
     return { envVar, Parameter };
   } catch (err) {
     spinner.fail(`${err.code}: ${params.Name}`);
+
     throw err;
   }
-}
+};
 
 /**
  * @param {string} paramName The parameter name to resolve.
  *
  * @returns {Promise<string[]>} The values to append to the env.
  */
-function getParamPromise(paramName) {
+const getParamPromise = paramName => {
   const withPrefix = slseedrc.type === 'app' && !paramName.startsWith('!');
   const name = paramName.replace(/^!/, '');
   const ssm = new AWS.SSM();
@@ -57,7 +58,7 @@ function getParamPromise(paramName) {
   });
 
   return promise;
-}
+};
 
 console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
@@ -71,7 +72,9 @@ console.log(`\n${chalk.cyan.bold('Let\'s create or update a .env file...')}\n`);
 
     const isApp = slseedrc.type === 'app';
     const fileName = `.env.${NODE_ENV}${isApp ? '.local' : ''}`;
+    // eslint-disable-next-line security/detect-non-literal-require
     const logLevels: string[] = await require(join(slseedrc.configs, 'log-levels'));
+    // eslint-disable-next-line security/detect-non-literal-require
     const ssmEnv: string[] = await require(join(slseedrc.configs, 'ssm-env'));
 
     const env = [

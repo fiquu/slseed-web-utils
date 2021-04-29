@@ -1,3 +1,4 @@
+import { CreateInvalidationResult } from 'aws-sdk/clients/cloudfront';
 import AWS from 'aws-sdk';
 
 /**
@@ -7,7 +8,9 @@ import AWS from 'aws-sdk';
  *
  * @returns {Promise} A promise to the invalidation.
  */
-export function invalidateDist(distId) {
+export const invalidateDist = (
+  distId: string
+): Promise<CreateInvalidationResult> => {
   const cloudfront = new AWS.CloudFront();
 
   const Items = ['/*'];
@@ -23,36 +26,37 @@ export function invalidateDist(distId) {
   };
 
   return cloudfront.createInvalidation(params).promise();
-}
+};
 
 /**
  * @param {string} Id The distribution id.
  */
-export async function getDistStatus(Id): Promise<string> {
+export const getDistStatus = async (Id: string): Promise<string> => {
   const cloudfront = new AWS.CloudFront();
 
   const { Distribution } = await cloudfront.getDistribution({ Id }).promise();
 
   return Distribution.Status;
-}
+};
 
 /**
  * Checks for the stack status.
  *
  * @param {string} Id The distribution Id name.
  */
-export async function waitForDeployed(Id: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
+export const waitForDeployed = (Id: string): Promise<boolean> =>
+  new Promise((resolve, reject) => {
     const interval = setInterval(() => {
-      getDistStatus(Id).then(status => {
-        if (status === 'Deployed') {
-          clearInterval(interval);
+      getDistStatus(Id)
+        .then(status => {
+          if (status === 'Deployed') {
+            clearInterval(interval);
 
-          resolve(true);
+            resolve(true);
 
-          return;
-        }
-      }).catch(reject);
+            return;
+          }
+        })
+        .catch(reject);
     }, 5000);
   });
-}
